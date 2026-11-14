@@ -33,7 +33,7 @@ npm exec --yes --package=node@22.23.4 -- sh -c 'npm run check && npm test && npm
 5. `npm run import:legacy -- /private/reviewed.json /private/metadata.json data/issues/YYYY-MM-DD.json` validates and refuses overwrite.
 6. Run the full verification suite, regenerate and commit `dist/`, and propose a content PR. No automatic merging or unchecked production push is installed.
 
-Routes: `/`, `/issues/YYYY-MM-DD/`, `/data/index.json`, `/data/latest.json`, `/data/issues/YYYY-MM-DD.json`, `/data/revisions/YYYY-MM-DD/vN.json`, `/data/schema.json`, `/build-manifest.json`. Index/latest are derived from canonical issues. All issues/revisions are retained; approved corrections must preserve earlier revisions and label changes. Templates may evolve without changing reviewed facts.
+Routes: `/`, `/issues/YYYY-MM-DD/`, `/data/index.json`, `/data/latest.json`, `/data/issues/YYYY-MM-DD.json`, `/data/revisions/YYYY-MM-DD/vN.json`, `/schema/issue.schema.json`, `/build-manifest.json`. Index/latest are derived from canonical issues. All issues/revisions are retained; approved corrections must preserve earlier revisions and label changes. Templates may evolve without changing reviewed facts.
 
 ## Email/recovery integration
 
