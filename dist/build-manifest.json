@@ -1,0 +1,13 @@
+{
+  "artifacts": {
+    "_astro/Issue.BW7Tw3-K.css": "fc871e1a5f95f6371af73b8726bf8bb85f8d16349881b4c22c01b01c640081c5",
+    "_headers": "f037095a4f71de0e21de1fb4094f5a7b24ab1210d76c8218962a3381aaeef7aa",
+    "data/index.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "data/latest.json": "38e0b9de817f645c4bec37c0d4a3e58baecccb040f5718dc069a72c7385a0bed",
+    "index.html": "2ace776eb4f3688a2fdb46267c89e1061922c4fbea8eddb506cb240b42e4953b",
+    "schema/issue.schema.json": "23d8ac1186f16d42c1e4e586d1d5ebdd469ecccaeeb2f3ccc1f3f110d5c85f23"
+  },
+  "issues": [],
+  "schemaVersion": 1,
+  "sourceRevision": "unversioned"
+}
