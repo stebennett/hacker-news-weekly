@@ -1,0 +1,10 @@
+node_modules/
+.astro/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+*.eml
+runtime-config*.json
+.DS_Store
+# dist/ is deliberately committed.

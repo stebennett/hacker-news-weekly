@@ -1,0 +1,283 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://twihn.com/schema/issue.schema.json",
+  "title": "TWIHN reviewed public issue v1",
+  "$comment": "All fields are public and allowlisted. Runtime validation via scripts/content.mjs validateIssue is also required: scheduled Friday 08:00 Europe/London identity; seven 24-hour UTC window ending at scheduledAt; submittedAt within the half-open window; sections ordered votes/comments/ask/show; top min(10, qualifyingCount) for the first three, all qualifying Show HN at 50+; IDs reference unique item records; independent ordinary rankings may overlap; qualifyingCount records the full collected population, not merely selected entries. Revisions >1 require correction metadata and all previous published revisions retained. URL validation additionally forbids credentials, whitespace, control characters, and backslashes. Availability notes must disclose inaccessible research rather than fabricate summaries.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "issueId": {
+      "type": "string",
+      "format": "date"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "scheduledAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "end": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ]
+    },
+    "collectedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "displayTimezone": {
+      "const": "Europe/London"
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "enum": [
+              "votes",
+              "comments",
+              "ask",
+              "show"
+            ]
+          },
+          "itemIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$"
+            }
+          },
+          "qualifyingCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "itemIds",
+          "qualifyingCount"
+        ]
+      }
+    },
+    "items": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[1-9][0-9]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$"
+          },
+          "kind": {
+            "enum": [
+              "story",
+              "ask",
+              "show"
+            ]
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "Z$"
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "comments": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sourceUrl": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://[^\\s]+$"
+          },
+          "discussionUrl": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://[^\\s]+$"
+          },
+          "story": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$"
+          },
+          "discussion": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$"
+          },
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "pattern": "^https?://[^\\s]+$"
+                },
+                "kind": {
+                  "enum": [
+                    "story",
+                    "discussion"
+                  ]
+                }
+              },
+              "required": [
+                "url",
+                "kind"
+              ]
+            }
+          },
+          "availability": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "story": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "reviewed",
+                      "unavailable",
+                      "no-comments",
+                      "text-post"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$"
+                  }
+                },
+                "required": [
+                  "status",
+                  "note"
+                ]
+              },
+              "discussion": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "reviewed",
+                      "unavailable",
+                      "no-comments",
+                      "text-post"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$"
+                  }
+                },
+                "required": [
+                  "status",
+                  "note"
+                ]
+              }
+            },
+            "required": [
+              "story",
+              "discussion"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "submittedAt",
+          "score",
+          "comments",
+          "discussionUrl",
+          "story",
+          "discussion",
+          "sources",
+          "availability"
+        ]
+      }
+    },
+    "correction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "previousRevision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "correctedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\r\\n]*\\S[^\\r\\n]*$"
+        }
+      },
+      "required": [
+        "previousRevision",
+        "correctedAt",
+        "note"
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "issueId",
+    "revision",
+    "scheduledAt",
+    "window",
+    "collectedAt",
+    "displayTimezone",
+    "sections",
+    "items"
+  ]
+}

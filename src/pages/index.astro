@@ -1,0 +1,7 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Issue from '../components/Issue.astro';
+import { loadArchive } from '../../scripts/content.mjs';
+const {issues} = await loadArchive();
+---
+<Layout>{issues.length ? <Issue issue={issues[0]}/> : <section><p class="eyebrow">A weekly perspective</p><h1>This Week in Hacker News</h1><p>A reviewed roundup of the stories and conversations that mattered on Hacker News.</p><p>No issues have been published yet. The archive will appear here after the first reviewed issue is ready.</p></section>}<nav aria-label="Issue archive"><h2>Archive</h2>{issues.length ? <ul>{issues.map(issue => <li><a href={`/issues/${issue.issueId}/`}>{issue.issueId}</a> · revision {issue.revision}</li>)}</ul> : <p>The archive is currently empty.</p>}</nav></Layout>
