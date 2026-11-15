@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { tmpdir } from 'node:os';
 import { legacy, metadata, fixture } from './site-fixtures.mjs';
 
 test('legacy import CLI validates then exclusively creates public output', async () => {
-  const tmp=await mkdtemp(path.join(process.env.TMPDIR || '/home/hermes/.hermes/cache/scratch','twihn-import-'));
+  const tmp=await mkdtemp(path.join(tmpdir(),'twihn-import-'));
   try {
     const input=path.join(tmp,'reviewed.json'), meta=path.join(tmp,'metadata.json'), output=path.join(tmp,'issue.json');
     await writeFile(input,JSON.stringify(legacy())); await writeFile(meta,JSON.stringify(metadata()));

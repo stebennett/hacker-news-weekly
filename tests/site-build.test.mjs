@@ -4,13 +4,14 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import path from 'node:path';
+import { tmpdir } from 'node:os';
 import { fixture } from './site-fixtures.mjs';
 import { stableJSON, loadArchive, validateIssue } from '../scripts/content.mjs';
 import { inventory } from '../scripts/artifacts.mjs';
 import { verifyDist } from '../scripts/verify-dist.mjs';
 
 test('fixture build: served routes, escaping, revisions, archive ordering, repeatable bytes and tamper rejection', {timeout:180000}, async () => {
-  const tmp = await mkdtemp(path.join(process.env.TMPDIR || '/home/hermes/.hermes/cache/scratch','twihn-site-'));
+  const tmp = await mkdtemp(path.join(tmpdir(),'twihn-site-'));
   const data = path.join(tmp,'data'), dist = path.join(tmp,'dist');
   const previous = {data:process.env.TWIHN_DATA_DIR,revision:process.env.TWIHN_SOURCE_REVISION};
   let server;
