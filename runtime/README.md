@@ -1,5 +1,11 @@
 # Private runtime and recovery CLI
 
+## Scheduled publication integration
+
+For the scheduled collect → grounded research → validated content PR → Cloudflare Pages → email workflow, use **[SCHEDULED_JOB.md](SCHEDULED_JOB.md)**. `runtime.weekly` freezes the scheduler's original Friday occurrence and full collection counts, checks research against that immutable selection, and binds explicit public provenance to the exact reviewed bytes. `runtime.publisher` is the content-only automatic publication adapter; `runtime.site_verify` supports the observed trusted Cloudflare Pages check-run plus exact production HTTPS readback without requiring `gh`.
+
+The operator separately authorized automatic validated **weekly content only**. Source PRs still require human approval. The scheduled source launch gate refuses unmerged runtime/source changes; its pre-activation fallback preserves the existing email-only job and must not open another send path for any occurrence with private delivery state. The configuration examples below document the low-level adapter contract, including the deliberately disabled bootstrap setup and older GitHub Deployments evidence mode; they are not the production weekly settings.
+
 Python 3.11+ on Linux, standard library only. Run commands from the repository root (`/home/hermes/projects/twihn`). No command installs a scheduler, changes DNS, creates a GitHub repository, or sends an operational alert. `resume` **can send the approved digest once** through the configured submission adapter; none of the tests use a real transport.
 
 ## Identity and immutable review
@@ -76,7 +82,7 @@ Private `$HOME/.hermes/data/twihn-mail.json`:
 }
 ```
 
-Optional `account` and `config` select an explicit Himalaya account/TOML. Retain the already-verified account; runtime does not configure credentials. These adapters use the installed v2 CLI contracts (`account check --json`, `envelope list --mailbox ... --json`, `message read --mailbox ... --raw ID`, `message send --save ... -- FILE`). They do not use obsolete `--folder`, `--output json`, or `message export` flags. Only the `send` action calls submission. Preflight checks account handshakes and reads Sent Items. Verification scans a bounded number of recent envelopes and reads raw copies, comparing Message-ID, exact From/To/Subject and decoded complete plain/HTML content. Extra transit headers and CRLF normalization are permitted. Evidence records both the submission-file digest and actual readback-byte digest. A matching subject/Message-ID alone is insufficient. Increase the bounded scan limits deliberately for older reconciliation; absence never authorizes resend.
+Optional `account` and `config` select an explicit Himalaya account/TOML. Retain the already-verified account; runtime does not configure credentials. These adapters use the installed v2 CLI contracts (`account check --json`, `envelope search --mailbox ... --json 'subject "START to END"'`, `message read --mailbox ... --raw ID`, `message send --save ... -- FILE`). They do not use obsolete `--folder`, `--output json`, or `message export` flags. Only the `send` action calls submission. Preflight checks account handshakes (including each reported backend) and searches Sent Items by the frozen weekly date window before checking the exact decoded subject. A legacy same-window subject blocks a new send even without Message-ID; labelled HTML tests do not. This server-side window filter avoids scanning unrelated mail in large Sent folders. Himalaya v2.2.1 returns `{queued,envelopes}`; the adapter accepts that wrapper and older bare arrays. Verification scans a bounded number of matching envelopes and reads raw copies, comparing Message-ID, exact From/To/Subject and decoded complete plain/HTML content. Extra transit headers and CRLF normalization are permitted. Evidence records both the submission-file digest and actual readback-byte digest. A matching subject/Message-ID alone is insufficient. Increase the bounded scan limits deliberately for older reconciliation; absence never authorizes resend.
 
 ### Read-only production website adapters
 

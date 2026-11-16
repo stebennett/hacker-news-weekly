@@ -16,10 +16,11 @@ npm run build
 npm run verify:dist
 ```
 
-When system Node is older, without changing system installation:
+When system Node is older, install the pinned Node executable in an isolated toolchain and put its `bin` directory first on `PATH`, without replacing system Node. Verify both versions before running the commands:
 
 ```sh
-npm exec --yes --package=node@22.23.4 -- sh -c 'npm run check && npm test && npm run build && npm run verify:dist'
+node --version
+npm --version
 ```
 
 `dist/` is deliberately committed. CI rebuilds it and rejects differences/untracked output. `TWIHN_SOURCE_REVISION` records a template/source revision when a release is built; the deterministic bootstrap defaults to `unversioned`. Do not use the artifact-containing commit's own SHA inside its bytes. Resolve the deployed commit through external GitHub/Pages evidence.
@@ -31,7 +32,7 @@ npm exec --yes --package=node@22.23.4 -- sh -c 'npm run check && npm test && npm
 3. Retrieve/read every unique story and discussion and add reviewed paragraphs. Repeated IDs across the two ordinary rankings must have identical metrics/summaries. Do not invent inaccessible-source content.
 4. Supply the public metadata required by `scripts/content.mjs`: issue/revision, scheduled time, actual collection time, complete qualifying counts and per-item source references/availability. No delivery addresses or credentials.
 5. `npm run import:legacy -- /private/reviewed.json /private/metadata.json data/issues/YYYY-MM-DD.json` validates and refuses overwrite.
-6. Run the full verification suite, regenerate and commit `dist/`, and propose a content PR. No automatic merging or unchecked production push is installed.
+6. For manual publication, run the full verification suite, regenerate and commit `dist/`, and propose a content PR. For scheduled publication, use the [weekly runbook](runtime/SCHEDULED_JOB.md): its adapter automates only restricted, validated content PRs after checking strict server-side merge protection. Source changes remain human-merged; unchecked production pushes are never used.
 
 Routes: `/`, `/issues/YYYY-MM-DD/`, `/data/index.json`, `/data/latest.json`, `/data/issues/YYYY-MM-DD.json`, `/data/revisions/YYYY-MM-DD/vN.json`, `/schema/issue.schema.json`, `/build-manifest.json`. Index/latest are derived from canonical issues. All issues/revisions are retained; approved corrections must preserve earlier revisions and label changes. Templates may evolve without changing reviewed facts.
 
@@ -39,9 +40,11 @@ Routes: `/`, `/issues/YYYY-MM-DD/`, `/data/index.json`, `/data/latest.json`, `/d
 
 See [runtime/README.md](runtime/README.md) for the tested CLI, exact private-config adapter contracts, baseline fallback, locked durable state and ambiguous-send reconciliation. Private sender/recipient configuration is required; none is committed. Tests use mocked submission only.
 
-`integrations/render_email.py` supports `--archive-url`, `--message-id`, and private `TWIHN_SENDER`/`TWIHN_RECIPIENT` settings. The new runtime is **not activated in the scheduler yet**. The existing email job remains in place, with its old top-five prompt corrected to top ten. Do not swap that working path until publication/configuration and end-to-end preview checks are ready.
+`integrations/render_email.py` supports `--archive-url`, `--message-id`, and private `TWIHN_SENDER`/`TWIHN_RECIPIENT` settings. The existing Friday 08:00 Europe/London agent job can freeze collection and review through `runtime.weekly`, publish through `runtime.publisher`, verify exact Cloudflare production evidence through `runtime.site_verify`, and submit through the durable email runtime. Website failure preserves the validated baseline email; uncertain email submission never automatically resends.
 
-Known current limitations: runtime/legacy email requires full ten-entry capped sections even though the public site supports proved smaller populations. Website adapters perform read-only verification of already-approved publication, not automatic content-PR creation/merge. No content auto-merge policy has been authorized. GitHub Deployment reporting must match the concrete verifier; check-only Pages reporting needs a compatible read adapter. These are activation gates, not claims of completed production automation.
+Activation has two independent gates: locally tested source must match human-merged production main, and automatic content publication requires a verified active main-branch ruleset with strict trusted status checks and no publishing-App bypass. The staged scheduler retains the original email-only fallback until source activation, provided no current-issue private work/state exists. Missing server policy blocks website mutations but does not suppress a complete baseline email. The App cannot administer repository rules; the operator configures that prerequisite in GitHub. See [runtime/SCHEDULED_JOB.md](runtime/SCHEDULED_JOB.md) for exact setup, original-scheduler identity, source provenance, private configuration, and repair commands.
+
+Known limitation: runtime/legacy email requires full ten-entry capped sections even though the public site supports proved smaller populations. Tests never publish fixtures or submit real email. Read-only infrastructure preflights and passing tests are not evidence that the first real weekly issue/email has been delivered; that run needs its own production and Sent MIME readbacks.
 
 ## Cloudflare Pages operator setup
 

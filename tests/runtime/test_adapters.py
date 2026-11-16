@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from runtime import adapters
@@ -25,7 +26,7 @@ if args[:2]==['account','check']:print(json.dumps({'success':True}))
 elif args[:2]==['message','send']:
  (root/'sent.eml').write_bytes(pathlib.Path(args[-1]).read_bytes())
  print('fake local transport only')
-elif args[:2]==['envelope','list']:print(json.dumps([{'id':'42'}] if (root/'sent.eml').exists() else []))
+elif args[:2] in (['envelope','list'], ['envelope','search']):print(json.dumps([{'id':'42'}] if (root/'sent.eml').exists() else []))
 elif args[:2]==['message','read']:sys.stdout.buffer.write((root/'sent.eml').read_bytes())
 else:sys.exit(9)
 ''')
@@ -80,5 +81,49 @@ else:sys.exit(9)
         before=(self.root/'commands').read_text().count('"send"')
         with self.assertRaises(RuntimeError):adapters.verify(json.loads(self.settings.read_bytes()),context)
         self.assertEqual((self.root/'commands').read_text().count('"send"'),before)
+
+    def test_actual_v2_wrapped_envelopes_are_supported(self):
+        self.assertEqual(adapters.envelopes({'queued': 0, 'envelopes': [{'id': '42'}]}), [{'id': '42'}])
+        with self.assertRaises(RuntimeError): adapters.envelopes({'queued': 0})
+
+    def test_wrapped_readback_verifies_exact_sent_mime(self):
+        self.run_runtime()
+        context=json.loads((self.store.issue_dir(self.issue.issue_id)/'context.json').read_bytes())
+        original = adapters.run
+        def wrapped(argv, settings, **kwargs):
+            result = original(argv, settings, **kwargs)
+            return {'queued': 0, 'envelopes': result} if argv[1:3] in (['envelope', 'list'], ['envelope', 'search']) else result
+        with patch.object(adapters, 'run', side_effect=wrapped):
+            self.assertTrue(adapters.verify(json.loads(self.settings.read_bytes()),context)['verified'])
+
+    def test_existing_legacy_subject_blocks_send_without_message_id(self):
+        context = dict(issueId=self.issue.issue_id, sender='sender@example.org', recipient='reader@example.org')
+        duplicate = {'queued': 0, 'envelopes': [{'id':'old', 'message-id':None,
+                      'subject':'Hacker News weekly roundup — 2026-11-06 to 2026-11-13'}]}
+        with patch.object(adapters, 'run', side_effect=[{'backends':[{'backend':'imap','ok':True},{'backend':'smtp','ok':True}]}, duplicate]):
+            with self.assertRaisesRegex(RuntimeError, 'already exists'):
+                adapters.preflight(json.loads(self.settings.read_bytes()),context)
+
+    def test_failed_backend_is_not_successful_preflight(self):
+        with patch.object(adapters, 'run', return_value={'backends':[{'backend':'smtp','ok':False}]}):
+            with self.assertRaisesRegex(RuntimeError, 'backend check failed'):
+                adapters.preflight(json.loads(self.settings.read_bytes()), {})
+
+    def test_preflight_scan_exhaustion_fails_closed(self):
+        settings = dict(binary='fake',verify_page_size=1,verify_max_pages=1)
+        with patch.object(adapters, 'run', side_effect=[{'success':True}, {'envelopes':[{'id':'1','subject':'another'}]}]):
+            with self.assertRaisesRegex(RuntimeError, 'scan exhausted'):
+                adapters.preflight(settings, dict(issueId=self.issue.issue_id))
+
+    def test_duplicate_check_filters_window_server_side_and_ignores_labelled_test(self):
+        context = dict(issueId=self.issue.issue_id, sender='sender@example.org', recipient='reader@example.org')
+        rows = {'queued':0, 'envelopes':[{'id':'test',
+            'subject':'Hacker News weekly roundup — 2026-11-06 to 2026-11-13 [HTML test]'}]}
+        with patch.object(adapters, 'run', side_effect=[{'success':True}, rows]) as run:
+            result = adapters.preflight({'binary':'fake'}, context)
+        self.assertTrue(result['sentItemsChecked'])
+        search = run.call_args_list[1].args[0]
+        self.assertEqual(search[1:3], ['envelope','search'])
+        self.assertEqual(search[-1], 'subject "2026-11-06 to 2026-11-13"')
 
 if __name__=='__main__':unittest.main()
