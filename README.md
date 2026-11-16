@@ -45,18 +45,27 @@ Known current limitations: runtime/legacy email requires full ten-entry capped s
 
 ## Cloudflare Pages operator setup
 
-After repository access and approved source merge:
+Infrastructure is managed by `stebennett/home-tf`, in its `pages/` Terraform root.
+Follow that repository's `docs/twihn-pages.md`; do not create a second Pages project
+or make dashboard configuration changes that conflict with Terraform.
 
-- Create a Git-connected Pages project for this private repository.
-- Production branch `main`, build command `exit 0`, output directory `dist`.
-- Enable previews for review branches, with test fixture data confined to previews.
-- Verify bootstrap deployment, then attach `twihn.com` with active TLS.
-- Apex hosting requires the Cloudflare zone/nameserver setup. Inventory/preserve current DNS, especially MX/TXT; obtain approval before changing nameservers.
-- Configure canonical apex and deliberate `www`/production `pages.dev` redirects without redirecting preview hosts or creating loops.
-- Require CI before merging production changes; only permit narrow content-only automation following explicit operator approval.
-- Verify the exact production commit's manifest, JSON and HTML on the live domain before including its issue permalink in email.
-
-No Cloudflare project, domain or GitHub remote was created by local build/test. Access/configuration must be verified separately. Do not send an extra real test email without explicit permission.
+- Project: `twihn`; Git source: this repository; production branch: `main`.
+- Serve committed artifacts: build `exit 0`, output `dist`, and
+  `SKIP_DEPENDENCY_INSTALL=1` for both production and preview.
+- After project creation, a new Git commit/PR exercises the connection. Check
+  Cloudflare deployment results separately from the GitHub `validate` check.
+  Project creation and passing site tests do not establish a deployed website.
+- First verify the production `pages.dev` landing page, `/data/index.json`,
+  `/data/latest.json` and `/build-manifest.json`. Empty index and null latest
+  are expected until a real reviewed issue is published.
+- Keep `TWIHN_CUSTOM_DOMAIN_ENABLED=false` until the initial production site
+  works. Then use home-tf's reviewed plan/apply flow for the domain/CNAME;
+  preserve existing DNS and verify TLS before enabling archive links in email.
+- Production account GitHub authorization is a separate prerequisite. If a new
+  commit does not create a deployment, inspect the Git connection/settings;
+  do not treat an unrelated CI success as evidence that Pages received it.
+- No weekly content automation or new email runtime is activated by deploying
+  this bootstrap. No additional test email without explicit permission.
 
 ## Restore
 
