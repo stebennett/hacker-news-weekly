@@ -15,7 +15,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from .orchestrator import RuntimeError, digest, validate_message
+from .orchestrator import RuntimeError, digest, validate_message, Issue, instant, UK
 
 
 def run(argv, settings, *, json_output=False):
@@ -53,7 +53,31 @@ def message_content(raw, sender, recipient) -> dict:
                 parts=[dict(type=part.get_content_type(), text=part.get_content().replace('\r\n','\n')) for part in message.iter_parts()])
 
 
+def envelopes(value):
+    # Himalaya 2.2.1 wraps rows with an offline-action queue count. Older
+    # supported builds returned the bare array; neither is delivery evidence.
+    rows = value.get('envelopes') if isinstance(value, dict) else value
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        raise RuntimeError('Sent Items readback must contain an envelope array')
+    return rows
+
+
+def scan_limits(settings):
+    page_size = int(settings.get('verify_page_size', 50))
+    max_pages = int(settings.get('verify_max_pages', 4))
+    if not 1 <= page_size <= 1000 or not 1 <= max_pages <= 100:
+        raise RuntimeError('invalid bounded Sent Items scan limits')
+    return page_size, max_pages
+
+
+def weekly_subject(issue_id):
+    issue = Issue.resolve(issue_id)
+    window = instant(issue.start).astimezone(UK).date().isoformat() + ' to ' + instant(issue.end).astimezone(UK).date().isoformat()
+    return 'Hacker News weekly roundup — ' + window, 'subject ' + json.dumps(window)
+
+
 def preflight(settings, context):
+    # Server-side filtering avoids exhausting a large unrelated Sent mailbox.
     base = prefix(settings)
     result = run(base + ['account','check','--json'], settings, json_output=True)
     # CLI versions may return either a structured backend report or a success
@@ -61,10 +85,23 @@ def preflight(settings, context):
     # preflight evidence, never evidence of a send.
     if not result or result is False or (isinstance(result, dict) and (result.get('error') or result.get('success') is False)):
         raise RuntimeError('account check did not confirm configured backends')
-    rows = run(base + ['envelope','list','--mailbox',settings.get('sent_mailbox','Sent Items'),
-                       '--page-size','1','--json'], settings, json_output=True)
-    if not isinstance(rows, list):
-        raise RuntimeError('Sent Items readback must return an envelope array')
+    if isinstance(result, dict) and 'backends' in result:
+        reports = result['backends']
+        if not isinstance(reports, list) or not reports or any(x.get('ok') is not True for x in reports):
+            raise RuntimeError('configured mail backend check failed')
+    subject, query = weekly_subject(context['issueId'])
+    page_size, max_pages = scan_limits(settings)
+    for page in range(1, max_pages + 1):
+        rows = envelopes(run(base + ['envelope','search','--mailbox',settings.get('sent_mailbox','Sent Items'),
+                             '--page',str(page),'--page-size',str(page_size),'--json',query], settings, json_output=True))
+        # Protect migrations/lost state too: the old scheduled digest has no
+        # stable Message-ID. A matching weekly subject blocks a fresh send.
+        if any(row.get('subject') == subject for row in rows):
+            raise RuntimeError('weekly subject already exists in Sent Items; reconcile existing delivery, NEVER resend automatically')
+        if len(rows) < page_size:
+            break
+    else:
+        raise RuntimeError('Sent Items preflight scan exhausted; increase bounded scan or reconcile before sending')
     return dict(accountChecked=True,sentItemsChecked=True,sender=context['sender'],recipient=context['recipient'])
 
 
@@ -88,16 +125,12 @@ def verify(settings, context):
     if digest(expected_raw) != context['messageSha256']:
         raise RuntimeError('saved submission differs from durable intent')
     expected = message_content(expected_raw,context['sender'],context['recipient'])
-    page_size = int(settings.get('verify_page_size',50))
-    max_pages = int(settings.get('verify_max_pages',4))
-    if not 1 <= page_size <= 1000 or not 1 <= max_pages <= 100:
-        raise RuntimeError('invalid bounded Sent Items scan limits')
+    page_size, max_pages = scan_limits(settings)
+    _, query = weekly_subject(context['issueId'])
     seen = set()
     for page in range(1,max_pages+1):
-        rows = run(base + ['envelope','list','--mailbox',mailbox,'--page',str(page),
-                           '--page-size',str(page_size),'--json'],settings,json_output=True)
-        if not isinstance(rows,list):
-            raise RuntimeError('invalid Sent Items envelope result')
+        rows = envelopes(run(base + ['envelope','search','--mailbox',mailbox,'--page',str(page),
+                           '--page-size',str(page_size),'--json',query],settings,json_output=True))
         for row in rows:
             ident = str(row.get('id',''))
             if not ident or ident in seen:

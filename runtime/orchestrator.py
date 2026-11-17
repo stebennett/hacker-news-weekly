@@ -205,7 +205,12 @@ class Store:
     def prepare(self, issue, source, *, approved=False, renderer_path=DEFAULT_RENDERER) -> dict:
         if not approved:
             raise RuntimeError('explicit --approve-reviewed is required; runtime cannot review summaries')
-        raw = Path(source).read_bytes()
+        return self.prepare_bytes(issue, Path(source).read_bytes(), approved=approved, renderer_path=renderer_path)
+
+    def prepare_bytes(self, issue, raw, *, approved=False, renderer_path=DEFAULT_RENDERER) -> dict:
+        """Validate and freeze the caller's exact reviewed byte snapshot."""
+        if not approved:
+            raise RuntimeError('explicit --approve-reviewed is required; runtime cannot review summaries')
         validate_review(json.loads(raw), issue, load_module(renderer_path))
         folder = self.issue_dir(issue.issue_id)
         if (folder / 'state.json').exists():
