@@ -35,9 +35,14 @@ export async function writeTagArchive(t, archive = taggedFixture()) {
     await mkdir(dir, {recursive:true});
     await writeFile(path.join(dir, `v${revision.revision}.json`), stableJSON(revision));
   }
-  await writeFile(path.join(dataDir, 'tags.json'), stableJSON(archive.registry));
-  for (const record of archive.records) {
+  await writeTagData(dataDir, archive);
+  return dataDir;
+}
+
+export async function writeTagData(dataDir, {registry, records}) {
+  await mkdir(path.join(dataDir, 'stories'), {recursive:true});
+  await writeFile(path.join(dataDir, 'tags.json'), stableJSON(registry));
+  for (const record of records) {
     await writeFile(path.join(dataDir, 'stories', `${record.id}.json`), stableJSON(record));
   }
-  return dataDir;
 }

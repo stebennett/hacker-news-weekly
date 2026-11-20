@@ -1,0 +1,15 @@
+---
+import TagLinks from './TagLinks.astro';
+import type { Item, Tag } from '../lib/types';
+interface Props { item: Item; tags: Tag[]; sourceIssueId?: string; }
+const { item, tags, sourceIssueId } = Astro.props;
+const local = (date: string) => new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',dateStyle:'medium',timeStyle:'short'}).format(new Date(date));
+---
+<li data-hn-id={item.id}>
+  <h3><a href={item.sourceUrl || item.discussionUrl} rel="noreferrer">{item.title}</a></h3>
+  <TagLinks tags={tags}/>
+  <p class="meta">{item.score} points · {item.comments} comments · {local(item.submittedAt)} (Europe/London) · <a href={item.discussionUrl}>HN discussion</a></p>
+  <p><strong>Story</strong> — {item.story}</p>
+  <p><strong>Discussion</strong> — {item.discussion}</p>
+  {sourceIssueId && <p class="meta"><a href={`/issues/${sourceIssueId}/`}>Week of {sourceIssueId}</a></p>}
+</li>

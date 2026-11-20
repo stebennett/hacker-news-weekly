@@ -1,0 +1,6 @@
+---
+import type { Tag } from '../lib/types';
+interface Props { tags: Tag[]; }
+const { tags } = Astro.props;
+---
+<ul class="tags" aria-label="Story tags">{tags.map(tag => <li><a href={`/tags/${tag.slug}/`}>{tag.label}</a></li>)}</ul>

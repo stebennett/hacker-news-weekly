@@ -27,3 +27,19 @@ export interface Issue {
   items: Record<string, Item>;
   correction?: { previousRevision: number; correctedAt: string; note: string };
 }
+
+/** Validated by scripts/tags.mjs; topic assignments never alter issue facts. */
+export interface Tag { slug: string; label: string; }
+export interface TagRegistry { schemaVersion: 1; tags: Tag[]; }
+export interface StoryRecord {
+  schemaVersion: 1;
+  id: string;
+  tagSlugs: string[];
+  issueIds: string[];
+}
+export interface ResolvedStory {
+  item: Item;
+  tagSlugs: string[];
+  issueIds: string[];
+  sourceIssueId: string;
+}
