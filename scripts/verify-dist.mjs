@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { expectedData, inventory, makeManifest } from './artifacts.mjs';
 import { stableJSON } from './content.mjs';
+import { loadStoryArchive, tagArchivePages } from './tags.mjs';
 export async function verifyDist(dist='dist') {
   const {data,issues} = await expectedData();
   for (const [name,expected] of Object.entries(data)) assert.equal(await readFile(`${dist}/${name}`,'utf8'),expected,`data parity ${name}`);
@@ -10,7 +11,11 @@ export async function verifyDist(dist='dist') {
   if (process.env.TWIHN_SOURCE_REVISION) assert.equal(manifest.sourceRevision,process.env.TWIHN_SOURCE_REVISION);
   assert.equal(stableJSON(manifest),stableJSON(await makeManifest(dist,manifest.sourceRevision,issues)),'artifact digest/inventory parity');
   const files = await inventory(dist);
-  const allowed = new Set(['index.html','_headers','build-manifest.json',...Object.keys(data),...issues.map(i=>`issues/${i.issueId}/index.html`)]);
+  // Task 11 inter-task hook: permit only the exact validated static tag routes.
+  // Public tag JSON/schema exports and semantic artifact verification follow in Task 12.
+  const {stories,registry} = await loadStoryArchive();
+  const tagRoutes = ['tags/index.html',...tagArchivePages(stories,registry).map(page=>`${page.url.slice(1)}index.html`)];
+  const allowed = new Set(['index.html','_headers','build-manifest.json',...Object.keys(data),...issues.map(i=>`issues/${i.issueId}/index.html`),...tagRoutes]);
   for (const file of files) assert.ok(allowed.has(file) || /^_astro\/[A-Za-z0-9_.-]+\.css$/.test(file),`unexpected public artifact ${file}`);
   assert.equal(await readFile(`${dist}/_headers`,'utf8'),await readFile('public/_headers','utf8'),'header policy parity');
   for (const file of files.filter(x=>x.endsWith('.html'))) {

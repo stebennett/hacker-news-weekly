@@ -1,0 +1,11 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { loadStoryArchive, tagArchivePages } from '../../../scripts/tags.mjs';
+const { stories, registry } = await loadStoryArchive();
+const tags = tagArchivePages(stories, registry).filter(archive => archive.page === 1);
+tags.sort((a, b) => a.tag.label.localeCompare(b.tag.label, 'en', {sensitivity:'base'}) || a.tag.slug.localeCompare(b.tag.slug, 'en'));
+---
+<Layout title="Tags — This Week in Hacker News" path="/tags/">
+  <h1>Tags</h1>
+  {tags.length ? <ul aria-label="Tags">{tags.map(archive => <li><a href={archive.url}>{archive.tag.label}</a> — {archive.storyCount} {archive.storyCount === 1 ? 'story' : 'stories'}</li>)}</ul> : <p>No tags are available yet.</p>}
+</Layout>

@@ -109,7 +109,8 @@ test('explicit empty tag archive retains neutral bootstrap landing', {timeout:60
   const html=await readFile(`${dist}/index.html`,'utf8');
   assert.match(html,/No issues have been published yet/);
   assert.match(html,/The archive is currently empty/);
-  assert.doesNotMatch(html,/data-hn-id=|href="\/tags\//);
+  assert.doesNotMatch(html,/data-hn-id=|href="\/tags\/[^"/]/, 'empty homepage has no story cards or invented topic links');
+  assert.match(html,/<a href="\/tags\/">Tags<\/a>/, 'shared navigation still exposes the neutral tag directory');
 });
 
 test('nonempty weekly build fails closed when story tagging is incomplete', {timeout:60000}, async t => {
