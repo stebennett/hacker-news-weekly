@@ -1,0 +1,1672 @@
+{
+  "collectedAt": "2026-11-20T08:02:08.661157Z",
+  "displayTimezone": "Europe/London",
+  "issueId": "2026-11-20",
+  "items": {
+    "50480936": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 24,
+      "discussion": "Replies compared error symptoms, account and regional differences, workarounds, and the importance of status communication during authentication outages.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50480936",
+      "id": "50480936",
+      "kind": "ask",
+      "score": 28,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50480936"
+        }
+      ],
+      "story": "The text post reported Claude OAuth failures and asked whether others were seeing the same problem.",
+      "submittedAt": "2026-11-13T09:54:36Z",
+      "title": "Claude OAuth Failures"
+    },
+    "50481227": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 23,
+      "discussion": "Discussion covered authorship, disclosure, reader experience, provenance, labor, and whether a work\u2019s value depends on its process or only on its result. Readers disagreed on how reliably AI authorship can be detected.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50481227",
+      "id": "50481227",
+      "kind": "ask",
+      "score": 14,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50481227"
+        }
+      ],
+      "story": "The Ask HN post asked whether people value a human-written book more than an AI-written one.",
+      "submittedAt": "2026-11-13T10:20:59Z",
+      "title": "Ask HN: Do you see a human written book more valuable than an AI written one?"
+    },
+    "50482279": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 3,
+      "discussion": "The brief thread praised the construction, asked about replaceable parts and cardboard gears, and noted the author\u2019s accepted 40C3 talk. The author disclosed that design tools for gears and jigs were AI-assisted.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50482279",
+      "id": "50482279",
+      "kind": "show",
+      "score": 88,
+      "sourceUrl": "https://www.niklasroy.com/carton-clock/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.niklasroy.com/carton-clock/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50482279"
+        }
+      ],
+      "story": "Carton Clock is a working pendulum clock built mainly from empty drink cartons, skewers, paper straws, string, weights, and hot glue. The project says it displays seconds, minutes, and hours and runs for a little over an hour when wound.",
+      "submittedAt": "2026-11-13T12:00:18Z",
+      "title": "Show HN: Carton Clock \u2013 A working pendulum clock made from empty drink cartons"
+    },
+    "50484421": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 231,
+      "discussion": "Commenters supplied the BLS release and debated deficits, interest costs, health-care costs, tariffs, energy prices, and monetary policy. Several objected that the submission lacked a primary-source link.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50484421",
+      "id": "50484421",
+      "kind": "ask",
+      "score": 176,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50484421"
+        }
+      ],
+      "story": "The HN text post reported that U.S. October producer prices rose 6.5% year over year, the highest since November 2022, while the monthly increase was 0.3%; it also cited a revised September annual reading.",
+      "submittedAt": "2026-11-13T14:53:32Z",
+      "title": "U.S. October PPI Rises 6.5% YoY, Highest in Nearly Four Years"
+    },
+    "50484426": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 55,
+      "discussion": "Replies debated whether creativity is inherently recombinative, whether AlphaFold and mathematical work qualify, and whether usefulness requires autonomous invention. Participants disagreed about the post\u2019s standard for novelty.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50484426",
+      "id": "50484426",
+      "kind": "ask",
+      "score": 30,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50484426"
+        }
+      ],
+      "story": "The Ask HN post asked for examples of genuinely new things AI has done, distinguishing autonomous novelty from tasks that recombine known material.",
+      "submittedAt": "2026-11-13T14:53:56Z",
+      "title": "Ask HN: Can anyone name anything new that AI has done?"
+    },
+    "50484658": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 752,
+      "discussion": "The thread debated whether AI improves programming today, what counts as better software, and whether complexity stems from technical choices, organizational incentives, or user demands. Readers also discussed the video\u2019s claims about tooling and abstraction.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50484658",
+      "id": "50484658",
+      "kind": "story",
+      "score": 495,
+      "sourceUrl": "https://www.youtube.com/watch?v=IRK8h67ol7Q",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.youtube.com/watch?v=IRK8h67ol7Q"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50484658"
+        }
+      ],
+      "story": "In a video discussion, Jonathan Blow and Wolf Tivy argued that AI has not yet made software meaningfully better despite its coding capabilities, emphasizing software complexity and the difference between generating code and improving systems.",
+      "submittedAt": "2026-11-13T15:08:44Z",
+      "title": "Jonathan Blow \u2013 If AI solved coding, why is my software still the same? [video]"
+    },
+    "50487228": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 76,
+      "discussion": "The dominant discussion was whether the imagery qualifies as pixel art: critics cited anti-aliasing and generative-image artifacts, while others praised the map and recognized locations. Commenters also asked for north-oriented or rotatable views; one identified Google photorealistic 3D tiles as the underlying imagery.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50487228",
+      "id": "50487228",
+      "kind": "show",
+      "score": 256,
+      "sourceUrl": "https://isometricsf.com/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://isometricsf.com/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50487228"
+        }
+      ],
+      "story": "An interactive, isometric map of the San Francisco Bay Area rendered in a pixel-art-like visual style. The public landing page provides the map and a link to a making-of page, but exposes little implementation detail in its initial rendered text.",
+      "submittedAt": "2026-11-13T17:58:37Z",
+      "title": "Show HN: Isometric SF \u2013 A pixel-art map of the SF Bay Area"
+    },
+    "50488230": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 36,
+      "discussion": "Respondents described self-hosting as possible but operationally demanding because of deliverability, reputation, monitoring, abuse handling, and redundancy. Many recommended relaying outbound mail through a specialist, ISP, SES, Zoho, or another managed provider.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50488230",
+      "id": "50488230",
+      "kind": "ask",
+      "score": 48,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50488230"
+        }
+      ],
+      "story": "The Ask HN post asked about the practical state of self-hosting email in 2026.",
+      "submittedAt": "2026-11-13T19:06:06Z",
+      "title": "Ask HN: What is the state of self-hosting email in 2026?"
+    },
+    "50489641": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 1285,
+      "discussion": "The thread discussed the scale of a national ground stop, the likely operational dependencies behind it, and the effects on airlines and travelers. Commenters compared the outage with other infrastructure failures and debated what redundancy should exist.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50489641",
+      "id": "50489641",
+      "kind": "story",
+      "score": 1655,
+      "sourceUrl": "https://www.nbcnews.com/news/us-news/faa-orders-nationwide-ground-stop-departing-flights-reasons-safety-rcna609247",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.nbcnews.com/news/us-news/faa-orders-nationwide-ground-stop-departing-flights-reasons-safety-rcna609247"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50489641"
+        }
+      ],
+      "story": "NBC News reported that the FAA imposed a nationwide ground stop on departing flights and lifted it about 4.5 hours later, disrupting thousands of flights. The report described a safety-related systems incident and the subsequent restoration of departures.",
+      "submittedAt": "2026-11-13T21:05:53Z",
+      "title": "FAA issues national ground stop \u2013 lifted 4.5 hours later"
+    },
+    "50491545": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 27,
+      "discussion": "Commenters praised the rapid turnaround and noted the irony that aircraft-broadcast ADS-B data could still show the situation during an FAA outage. The maker said the site was generated with Claude Code in roughly 30 minutes and then cleaned up. Questions covered the data source, aircraft coverage, apparent speed, and the ground stop's cause.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50491545",
+      "id": "50491545",
+      "kind": "show",
+      "score": 220,
+      "sourceUrl": "https://grounds.top/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://grounds.top/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50491545"
+        }
+      ],
+      "story": "grounds.top is an unofficial, live-and-replayable visualization of the November 13, 2026 FAA nationwide ground stop. It compares U.S. tracked commercial flight activity with the same time a week earlier, using adsb.fi community ADS-B positions and FAA NAS Status delay data, while explaining that it is a consistent sample rather than an official count.",
+      "submittedAt": "2026-11-13T23:17:39Z",
+      "title": "Show HN: Live map of U.S. flights during tonight's FAA nationwide ground stop"
+    },
+    "50491617": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 30,
+      "discussion": "Commenters compared regional and network experiences, discussed anti-abuse controls and scraping, and suggested alternative search engines, logged-in use, and changes to IP reputation or network setup.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50491617",
+      "id": "50491617",
+      "kind": "ask",
+      "score": 47,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50491617"
+        }
+      ],
+      "story": "The Tell HN author reported that Google Search appeared to be increasingly gated behind login for users on certain CGNAT or shared IP addresses.",
+      "submittedAt": "2026-11-13T23:26:24Z",
+      "title": "Tell HN: Google Search to start locking down search behind a login wall"
+    },
+    "50493251": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 651,
+      "discussion": "Commenters debated the credibility and implications of the allegation, Nvidia\u2019s supply constraints, and whether startup financing can meaningfully distort demand. The thread also discussed competitive dynamics and the economics of AI infrastructure.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50493251",
+      "id": "50493251",
+      "kind": "story",
+      "score": 1114,
+      "sourceUrl": "https://www.techpowerup.com/354814/nvidia-allegedly-engineered-scarcity-by-funding-ai-startups-to-buy-its-gpus",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.techpowerup.com/354814/nvidia-allegedly-engineered-scarcity-by-funding-ai-startups-to-buy-its-gpus"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50493251"
+        }
+      ],
+      "story": "TechPowerUp reported allegations that Nvidia reinforced GPU scarcity by funding AI startups that then bought Nvidia GPUs. The article framed the account as an allegation about incentives and market structure, not an established finding.",
+      "submittedAt": "2026-11-14T02:52:59Z",
+      "title": "Nvidia allegedly engineered scarcity by funding AI startups to buy its GPUs"
+    },
+    "50494696": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 54,
+      "discussion": "Answers emphasized problem framing, domain knowledge, evaluation, automation, data handling, tool use, and building useful workflows rather than prompt tricks alone. People also recommended shipping small projects and learning where models fail.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50494696",
+      "id": "50494696",
+      "kind": "ask",
+      "score": 93,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50494696"
+        }
+      ],
+      "story": "The Ask HN post asked which concrete AI skills a moderately technical person can learn independently through online material and experimentation to benefit economically from LLMs and agents.",
+      "submittedAt": "2026-11-14T06:56:42Z",
+      "title": "Ask HN: What are the most useful, concrete AI skills to independently learn?"
+    },
+    "50496787": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 74,
+      "discussion": "Several users reported that it feels responsive and uses less memory than Arc or alternatives; extension compatibility and Arc-like workflow were recurring positives. Others questioned the proliferation and long-term viability of Arc replacements, compared it with Zen/Firefox and Safari, and raised security concerns about a solo, AI-assisted browser project. The author described WebKit process sandboxing, separate helpers for untrusted files, public security advisories, and personal code review/testing.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50496787",
+      "id": "50496787",
+      "kind": "show",
+      "score": 122,
+      "sourceUrl": "https://github.com/ZigaoWang/zigzag",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/ZigaoWang/zigzag"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50496787"
+        }
+      ],
+      "story": "Zigzag is a free, Apache-2.0 native macOS browser written in Swift on WebKit, aimed at Arc users. It requires macOS 15.4+, uses a sidebar with spaces and profiles, imports Arc data, supports Chrome Web Store extensions, and advertises no account or telemetry. The README says WebKit is supplied and security-updated by macOS, while the app adds Arc-like organization, split view, Reader, ad blocking, and other features.",
+      "submittedAt": "2026-11-14T13:17:10Z",
+      "title": "Show HN: Zigzag, a native Mac browser for people leaving Arc"
+    },
+    "50497132": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 44,
+      "discussion": "Responses compared it with Factorio and Dwarf Fortress, questioned whether terminal presentation is enough differentiation, and suggested Nerd Font icons and different industrial processes. The author highlighted agent telegrams, lore, and quality-of-life features, added a calmer UI preset after criticism, and said they would rewrite AI-generated lore themselves.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50497132",
+      "id": "50497132",
+      "kind": "show",
+      "score": 173,
+      "sourceUrl": "https://gitlab.com/snipedbywifi/terminactory",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://gitlab.com/snipedbywifi/terminactory"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50497132"
+        }
+      ],
+      "story": "Terminactory is an Apache-2.0 Rust terminal idle factory game for macOS/Linux (and Windows through WSL). Players mine, process, research, and sell resources; it includes an in-game browser/lore system, compact and Nerd Font options, and messages from Claude Code or other agents through tfac msg. The author says implementation used major Claude assistance.",
+      "submittedAt": "2026-11-14T14:05:54Z",
+      "title": "Show HN: A terminal-native idle factory game, written in Rust with ratatui"
+    },
+    "50497137": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 39,
+      "discussion": "Readers debated what AI assistance changes in CPU design and whether simulation and synthesis demonstrate real hardware quality. A detailed technical exchange covered verification, timing, microarchitecture documentation, FPGA plans, and remaining rough edges.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50497137",
+      "id": "50497137",
+      "kind": "show",
+      "score": 86,
+      "sourceUrl": "https://github.com/FURSOY/fursoy-cpu",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/FURSOY/fursoy-cpu"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50497137"
+        }
+      ],
+      "story": "Fursoy Slice-1 is a 64-bit out-of-order superscalar RISC-V processor in SystemVerilog that boots Linux 6.6.50 and BusyBox under Sv39. The repository documents 2-wide execution, verification work, and pre-layout 500 MHz Nangate 45 nm timing closure.",
+      "submittedAt": "2026-11-14T14:06:34Z",
+      "title": "Show HN: Fursoy \u2013 Out-of-order RV64IMAFDV core in SystemVerilog (Linux 6.6)"
+    },
+    "50497147": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 37,
+      "discussion": "Interest centered on avoiding agent-browser focus theft, bot detection, shared login sessions, visual feedback, and resource use. The author said it is WebKit-only with no CDP; profile forking is not yet implemented, though saved state can be loaded into a fresh workspace.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50497147",
+      "id": "50497147",
+      "kind": "show",
+      "score": 109,
+      "sourceUrl": "https://github.com/paul-nameless/agweb",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/paul-nameless/agweb"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50497147"
+        }
+      ],
+      "story": "Agweb is an open-source macOS browser for coding agents, built on WebKit. It exposes a Playwright-like shell CLI, keeps agent tabs visible in one non-focus-stealing window, and suspends idle tabs.",
+      "submittedAt": "2026-11-14T14:08:12Z",
+      "title": "Show HN: Agweb \u2013 a browser for agents that stays out of your way"
+    },
+    "50497589": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 30,
+      "discussion": "Readers praised the readable first-principles implementation and asked for a clearer inventory of what is omitted versus DeepSeek-V3. One commenter reported getting it running on an AMD RX 7600 XT with ROCm/JAX and contributed setup notes; others requested learning resources and CPU/C++ support.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50497589",
+      "id": "50497589",
+      "kind": "show",
+      "score": 276,
+      "sourceUrl": "https://github.com/Vaibhaav-Tiwari/deepseek-v3-jax",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/Vaibhaav-Tiwari/deepseek-v3-jax"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50497589"
+        }
+      ],
+      "story": "A MIT-licensed, educational JAX reimplementation of selected DeepSeek-V3 ideas in about 190 lines: multi-head latent attention, DeepSeekMoE, bias-based expert balancing, and multi-token prediction. The repository documents a 36.2M-parameter run trained on 207 public-domain detective books on a 24GB MacBook Air M5, and publishes its checkpoint, data, tests, and reproduction instructions.",
+      "submittedAt": "2026-11-14T15:04:15Z",
+      "title": "Show HN: DeepSeek V3 in ~200 lines of pure Jax"
+    },
+    "50500963": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 1494,
+      "discussion": "Commenters focused on the engineering spectacle and on the risks and operational value of catching a large booster at the launch tower. Discussion also covered launch cadence, whether the test objectives justified the approach, and comparisons with other reusable-launch systems.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50500963",
+      "id": "50500963",
+      "kind": "story",
+      "score": 1762,
+      "sourceUrl": "https://www.spacex.com/launches/starship-flight-15",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.spacex.com/launches/starship-flight-15"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50500963"
+        }
+      ],
+      "story": "SpaceX\u2019s Flight 15 page documented a Starship test flight that ended with a successful tower catch of the returning booster. The mission page presented the event as part of the company\u2019s iterative flight-test program.",
+      "submittedAt": "2026-11-14T21:22:24Z",
+      "title": "SpaceX catches the Starship to end Flight 15"
+    },
+    "50502839": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 9,
+      "discussion": "The short thread was positive. A commenter linked a fuller making-of post and asked about color choices; the author explained that alternate color variants exist but default rules avoid an overly stripey result.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50502839",
+      "id": "50502839",
+      "kind": "show",
+      "score": 56,
+      "sourceUrl": "https://bobbiec.github.io/jamaican-font.html",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://bobbiec.github.io/jamaican-font.html"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50502839"
+        }
+      ],
+      "story": "Jamaican Alphabet Font is an experimental font inspired by treating Jamaica\u2019s flag as the letter X. It includes regular and connected variants, with colors and shapes encoded in the font and contextual features joining selected glyphs.",
+      "submittedAt": "2026-11-15T00:56:45Z",
+      "title": "Show HN: A custom font based on the Jamaican flag alphabet"
+    },
+    "50504072": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 64,
+      "discussion": "Discussion split between enthusiasm for stricter long-lived Python codebases and criticism that mandatory annotations on every variable duplicate type inference and make Python less pleasant. Readers compared it with existing type checkers and strict languages.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50504072",
+      "id": "50504072",
+      "kind": "show",
+      "score": 67,
+      "sourceUrl": "https://github.com/matheuzgomes/gawain",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/matheuzgomes/gawain"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50504072"
+        }
+      ],
+      "story": "Gawain is a Python type-annotation checker that requires annotations on variables, parameters, returns, and class attributes, then invokes ty or pyrefly to check them.",
+      "submittedAt": "2026-11-15T04:39:25Z",
+      "title": "Show HN: Gawain \u2013 Require type hints on all Python variables"
+    },
+    "50507303": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 673,
+      "discussion": "The dominant response was that public-domain status is not the same as open source: copyright is generally needed to impose open-source license conditions. Commenters also disputed whether AI-assisted code is necessarily uncopyrightable and whether the proposed rule is workable.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50507303",
+      "id": "50507303",
+      "kind": "story",
+      "score": 1285,
+      "sourceUrl": "https://jakub.jankiewicz.org/blog/ai-code-open-source/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://jakub.jankiewicz.org/blog/ai-code-open-source/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50507303"
+        }
+      ],
+      "story": "The essay argues that AI-generated code should be open source, citing training on publicly available material and uncertainty around copyrightability of purely AI-generated output. It distinguishes fully automated output from mixed human-and-AI authorship but favors open release for lightly reviewed or prompt-only code.",
+      "submittedAt": "2026-11-15T14:46:58Z",
+      "title": "All AI-generated code should be Open Source"
+    },
+    "50510042": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 92,
+      "discussion": "Commenters discussed processor risk controls, appeals, alternative providers, account concentration, and the difficulty of resolving opaque fraud decisions. Replies emphasized keeping contingency payment options and records.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50510042",
+      "id": "50510042",
+      "kind": "ask",
+      "score": 181,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50510042"
+        }
+      ],
+      "story": "The Ask HN author said Stripe closed their account after a single $1,500 invoice and did not request evidence, asking others about recourse and payment-processing risk.",
+      "submittedAt": "2026-11-15T19:49:28Z",
+      "title": "Ask HN: Stripe closed us after one $1,500 invoice and never asked for evidence"
+    },
+    "50511718": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 21,
+      "discussion": "Players found the puzzle rewarding but some struggled with the initial mechanics and asked for clearer explanations of gear ratios, better feedback, and more use of screen space. The author\u2019s HN note identified the game as a Fable 5.2 creation.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50511718",
+      "id": "50511718",
+      "kind": "show",
+      "score": 89,
+      "sourceUrl": "https://lastcomplication.com/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://lastcomplication.com/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50511718"
+        }
+      ],
+      "story": "The Last Complication is a watchmaking puzzle game with staged benches and gear-ratio challenges. The linked game presents a workshop-like progression around assembling clock mechanisms.",
+      "submittedAt": "2026-11-15T22:48:52Z",
+      "title": "Show HN: The Last Complication, a Zachtronics-style watchmaking puzzle game"
+    },
+    "50513451": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 43,
+      "discussion": "Commenters compared aliases, catch-all addresses, spam filtering, and the trade-off between public contact information and abuse. The discussion shared phishing indicators and operational-security habits.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50513451",
+      "id": "50513451",
+      "kind": "ask",
+      "score": 123,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50513451"
+        }
+      ],
+      "story": "The Tell HN post warned that addresses published on HN, including in Who Is Hiring-style posts, were being used in phishing attempts, based on a unique email address that received a fake AWS-payment message.",
+      "submittedAt": "2026-11-16T02:53:30Z",
+      "title": "Tell HN: HN is being scraped for emails to scam"
+    },
+    "50517410": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 18,
+      "discussion": "Users praised its speed and reported true positives, but others found false positives in Django and Flask projects. Discussion focused on the definition of dead code, library versus application analysis, and configuration for framework conventions.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50517410",
+      "id": "50517410",
+      "kind": "show",
+      "score": 63,
+      "sourceUrl": "https://github.com/Apakottur/unref",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/Apakottur/unref"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50517410"
+        }
+      ],
+      "story": "Unref is a Rust-based Python dead-code finder built on Ruff\u2019s parser. Its HN post says it moved from Python to Rust and can check CPython in under a second.",
+      "submittedAt": "2026-11-16T13:30:30Z",
+      "title": "Show HN: Unref \u2013 A Python dead code finder built on Ruff's parser"
+    },
+    "50517803": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 24,
+      "discussion": "Discussion examined code-mode agents, custom-tool reuse, policy boundaries, security, and claimed task speed and cost reductions. Readers asked how the system compares with MCP-style integrations and how it avoids unsafe permissions.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50517803",
+      "id": "50517803",
+      "kind": "show",
+      "score": 52,
+      "sourceUrl": "https://github.com/withcoral/coral",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/withcoral/coral"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50517803"
+        }
+      ],
+      "story": "Coral is an open-source, self-hosted gateway for agents that lets them write reusable TypeScript custom tools while enforcing policies and managed identities. The HN post says programs run in V8 isolates without direct network access or credentials.",
+      "submittedAt": "2026-11-16T14:14:51Z",
+      "title": "Show HN: Coral \u2013 Open-source gateway where agents write their own tools"
+    },
+    "50517840": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 57,
+      "discussion": "The thread concentrated on security and misuse: commenters compared it with BadUSB, questioned using it with air-gapped systems, and noted platforms and tools that block untrusted USB devices. Others suggested KVM-like extensions and alternatives.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50517840",
+      "id": "50517840",
+      "kind": "show",
+      "score": 56,
+      "sourceUrl": "https://github.com/mr-anjaneyam/Emittr",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/mr-anjaneyam/Emittr"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50517840"
+        }
+      ],
+      "story": "Emittr turns a rooted Android phone into a USB HID keyboard and mouse using the Linux USB gadget subsystem, intended for controlled or locked-down systems where host software cannot be installed. The author says it exposes a LAN web UI and does not store credentials on the rooted phone.",
+      "submittedAt": "2026-11-16T14:18:15Z",
+      "title": "Show HN: Nobody blocks a keyboard \u2013 Rooted Android as a physical USB Deck"
+    },
+    "50520076": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 117,
+      "discussion": "Respondents described AI as helpful for triage, fixes, tests, and refactors but limited by unclear requirements, integration work, validation, and organizational prioritization. Some reported substantial backlog reduction; others said the tools create or reveal additional work.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50520076",
+      "id": "50520076",
+      "kind": "ask",
+      "score": 103,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50520076"
+        }
+      ],
+      "story": "The Ask HN post asked why bug backlogs are not empty if AI coding tools are as capable as advertised, inviting concrete experience rather than a claim about a particular product.",
+      "submittedAt": "2026-11-16T17:20:28Z",
+      "title": "Ask HN: If AI tools are so good, why isn't your bug backlog empty?"
+    },
+    "50520741": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 22,
+      "discussion": "Commenters discussed the ethics and possible misuse of fake dashboard screenshots, as well as the technical challenge of visually matching interfaces. The author asked whether UI-cloning work should become an open-source product.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50520741",
+      "id": "50520741",
+      "kind": "show",
+      "score": 51,
+      "sourceUrl": "https://fakemetrics.com/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://fakemetrics.com/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50520741"
+        }
+      ],
+      "story": "FakeMetrics is a tool for making mock copies of familiar dashboards with explicitly made-up numbers for slides, demos, or jokes. The author described it as an experiment in screenshot-driven UI cloning.",
+      "submittedAt": "2026-11-16T18:08:04Z",
+      "title": "Show HN: Fakemetrics.com \u2013 \"build in public\" like a superstar"
+    },
+    "50521045": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source could not be fully retrieved during research; summary is limited to the HN submission and discussion.",
+          "status": "unavailable"
+        }
+      },
+      "comments": 711,
+      "discussion": "The discussion was dominated by uncertainty over whether several recent outages shared a cause or merely appeared clustered. Commenters cited centralized dependencies, technical debt, staffing, and attack capability, while others warned against pattern matching.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50521045",
+      "id": "50521045",
+      "kind": "story",
+      "score": 836,
+      "sourceUrl": "https://apnews.com/article/bank-outage-chase-wells-fargo-truist-50fee2693c22f597fa6ca51a97ef2cda",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://apnews.com/article/bank-outage-chase-wells-fargo-truist-50fee2693c22f597fa6ca51a97ef2cda"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50521045"
+        }
+      ],
+      "story": "AP News reported that a technical issue at JPMorgan Chase caused online-banking delays for U.S. banks, with the linked page later blocked by an anti-bot verification screen during research.",
+      "submittedAt": "2026-11-16T18:31:30Z",
+      "title": "Technical issue at JPMorgan Chase triggers online banking delays for US banks"
+    },
+    "50522980": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 331,
+      "discussion": "The project lead described a student-supported effort with human lecture review and invited course requests. Readers welcomed the access but discussed the limits of lecture-only learning, course licensing and attribution, and the role of structured exercises and feedback.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50522980",
+      "id": "50522980",
+      "kind": "story",
+      "score": 2372,
+      "sourceUrl": "https://www.cs.cmu.edu/learn/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.cs.cmu.edu/learn/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50522980"
+        }
+      ],
+      "story": "Carnegie Mellon\u2019s CS Learn launched free full lecture series on YouTube in subjects including machine learning, systems, software construction, architectures, AI agents, and production ML. The site says self-paced courseware, instant-feedback lessons, badges, and AI tutoring are planned, with several courses scheduled for January 2027.",
+      "submittedAt": "2026-11-16T20:43:36Z",
+      "title": "Carnegie Mellon is putting computer science courses on YouTube for free"
+    },
+    "50523377": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 13,
+      "discussion": "The short thread congratulated the release, pointed to a separate browser-based live-video project, and included a vendor comment promoting a SAM 3.1 low-latency API. One commenter asked that the large GIF be replaced with video; another asked about reposting etiquette because the project had appeared on HN days earlier.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50523377",
+      "id": "50523377",
+      "kind": "show",
+      "score": 120,
+      "sourceUrl": "https://github.com/aryamandarda/tamserve",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/aryamandarda/tamserve"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50523377"
+        }
+      ],
+      "story": "tamserve is an Apache-2.0 Python serving engine for real-time, multi-camera object tracking using SAM 2, EdgeTAM, and optionally SAM 3 for text prompts. It shares model instances across cameras and dynamically batches work; its README reports lower GPU-memory use and higher aggregate throughput than the model's stock per-camera code in specified EdgeTAM/RTX 4090 benchmarks, while reporting essentially unchanged DAVIS 2017 accuracy.",
+      "submittedAt": "2026-11-16T21:14:39Z",
+      "title": "Show HN: Open-source, real-time object tracking for live video feeds"
+    },
+    "50525052": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 37,
+      "discussion": "People asked whether it replaces database and knowledge-management tools and questioned ontology as a model for human decisions. The author described it as an abstraction layer that can query and write back to multiple systems; commenters raised governance and usability concerns.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50525052",
+      "id": "50525052",
+      "kind": "show",
+      "score": 72,
+      "sourceUrl": "https://github.com/0nelight/sutra-os",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/0nelight/sutra-os"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50525052"
+        }
+      ],
+      "story": "Sutra-OS is an open-source, self-hosted ontology platform for representing data as typed, linked, actionable units governed by rules with source traceability. The repository calls it beta and says portions of the model language, APIs, UI, and documentation remain unfinished.",
+      "submittedAt": "2026-11-16T23:25:41Z",
+      "title": "Show HN: Sutra-OS \u2013 A self-hosted ontology platform"
+    },
+    "50530163": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source could not be fully retrieved during research; summary is limited to the HN submission and discussion.",
+          "status": "unavailable"
+        }
+      },
+      "comments": 645,
+      "discussion": "Commenters debated causality, implementation differences, parental expectations, enforcement, and whether phone restrictions address broader educational problems. Several asked how the studies handled confounders and uneven adoption.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50530163",
+      "id": "50530163",
+      "kind": "story",
+      "score": 1301,
+      "sourceUrl": "https://www.nytimes.com/2026/11/17/upshot/school-phone-bans-study-scores.html",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.nytimes.com/2026/11/17/upshot/school-phone-bans-study-scores.html"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50530163"
+        }
+      ],
+      "story": "The New York Times article reported new evidence associating school phone bans with gradually improving test scores. Its account presented the findings as evidence rather than proof that bans alone caused the gains.",
+      "submittedAt": "2026-11-17T11:45:51Z",
+      "title": "New Evidence Shows School Phone Bans Are Gradually Improving Test Scores"
+    },
+    "50532385": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 38,
+      "discussion": "Supporters welcomed progressive enhancement and less client-side JavaScript. Skeptics raised accessibility, CSS-name conflicts, and complexity concerns; the author said Alloy is a new design system rather than a drop-in utility layer. Discussion also debated which browser capabilities should become native and where JavaScript remains necessary.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50532385",
+      "id": "50532385",
+      "kind": "show",
+      "score": 210,
+      "sourceUrl": "https://alloyhtml.com/example.html",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://alloyhtml.com/example.html"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50532385"
+        }
+      ],
+      "story": "Alloy CSS is a fixed-scale CSS kit for server-rendered interfaces that uses current browser features such as dialog, popover, commandfor, and :has(). Its linked invoice-dashboard example is one HTML file with no JavaScript while retaining menus, dialog, drawer, tabs, tooltips, toast, and other interactions.",
+      "submittedAt": "2026-11-17T15:07:09Z",
+      "title": "Show HN: Alloy CSS, dialogs, menus and tabs that work with JavaScript off"
+    },
+    "50532849": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 765,
+      "discussion": "Commenters discussed the risks of centralized communications systems, outage reporting, and whether recent disruptions suggest common operational fragility. Several cautioned against inferring a single cause from unrelated outages.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50532849",
+      "id": "50532849",
+      "kind": "story",
+      "score": 669,
+      "sourceUrl": "https://www.cnn.com/2026/11/17/politics/highly-classified-national-security-communications-network-goes-down",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.cnn.com/2026/11/17/politics/highly-classified-national-security-communications-network-goes-down"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50532849"
+        }
+      ],
+      "story": "CNN reported that a highly classified U.S. national-security communications network went down. The report described the outage and the limited public information available about its cause and impact.",
+      "submittedAt": "2026-11-17T15:38:28Z",
+      "title": "Highly classified US national security communications network goes down"
+    },
+    "50533270": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 8,
+      "discussion": "Readers welcomed more usable Trainium software but questioned benchmarks, metrics, model support, and the maturity of AWS\u2019s ecosystem. The author and commenters discussed throughput reporting and the gap with Nvidia-oriented tooling.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50533270",
+      "id": "50533270",
+      "kind": "show",
+      "score": 54,
+      "sourceUrl": "https://github.com/RunanywhereAI/trnrt",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/RunanywhereAI/trnrt"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50533270"
+        }
+      ],
+      "story": "TrnRT is an open-source LLM inference engine for AWS Trainium, with NKI megakernels, a claimed 1M-token context capability, and an OpenAI-compatible API. The HN post described early GLM-5.3 Flash support and performance experiments on trn2 hardware.",
+      "submittedAt": "2026-11-17T16:01:04Z",
+      "title": "Show HN: TrnRT \u2013 An open-source LLM inference engine for AWS Trainium"
+    },
+    "50535230": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 861,
+      "discussion": "Readers debated benchmark claims, pricing and product segmentation, and whether the release materially changes practical software work. Comments also compared the models with competing systems and discussed reliability, latency, and evaluation practices.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50535230",
+      "id": "50535230",
+      "kind": "story",
+      "score": 1345,
+      "sourceUrl": "https://openai.com/index/introducing-gpt-6-2-astra-sol/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://openai.com/index/introducing-gpt-6-2-astra-sol/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50535230"
+        }
+      ],
+      "story": "OpenAI introduced GPT-6.2 Astra and Sol as new models, describing Astra as the stronger model and Sol as a lower-latency, lower-cost option. The announcement positioned them for agentic and knowledge-work tasks.",
+      "submittedAt": "2026-11-17T17:46:43Z",
+      "title": "GPT\u20116.2 Astra and Sol"
+    },
+    "50538240": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 329,
+      "discussion": "The thread focused on exploitability, the affected parsing and deployment conditions, and how the issue compares with past Java vulnerabilities. Readers discussed patch urgency, dependency inventory, and whether the branding overstated the scope.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50538240",
+      "id": "50538240",
+      "kind": "story",
+      "score": 1178,
+      "sourceUrl": "https://calif.io/java4shell/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://calif.io/java4shell/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50538240"
+        }
+      ],
+      "story": "Calif described Java4Shell, a remote-code-execution vulnerability affecting some OpenJDK Base64 processing paths. The report set out the affected conditions, proof-of-concept context, and remediation guidance.",
+      "submittedAt": "2026-11-17T21:11:28Z",
+      "title": "Java4Shell: RCE in OpenJDK when processing Base64"
+    },
+    "50542705": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 710,
+      "discussion": "Commenters debated uncompensated training and answer extraction, creator displacement, concentration of power, and the long-run supply of useful web content. Suggested responses included revenue sharing, regulation, subscriptions, local or open models, and business-model changes.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50542705",
+      "id": "50542705",
+      "kind": "story",
+      "score": 806,
+      "sourceUrl": "https://nicolasbouliane.com/blog/death-by-ai",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://nicolasbouliane.com/blog/death-by-ai"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50542705"
+        }
+      ],
+      "story": "The author wrote that AI-driven answer products and search changes were reducing traffic to All About Berlin, threatening the economics of a locally focused information site. The essay described the concern as both a business and web-ecosystem problem.",
+      "submittedAt": "2026-11-18T06:47:26Z",
+      "title": "AI is killing All About Berlin"
+    },
+    "50544821": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 70,
+      "discussion": "Players found it fun but requested keyboard-layout support (including Turkish Q and AZERTY), clearer controls, and an arcade/practice mode. A long thread debated teaching sequence: home-row drills and arbitrary letter combinations versus early use of common, meaningful words for motivation. One comment reported an SSL-certificate problem.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50544821",
+      "id": "50544821",
+      "kind": "show",
+      "score": 143,
+      "sourceUrl": "https://typefighter2.com/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://typefighter2.com/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50544821"
+        }
+      ],
+      "story": "Type Fighter II is an arcade-styled touch-typing game with player selection, settings, credits, and a leaderboard visible from its start screen.",
+      "submittedAt": "2026-11-18T11:11:53Z",
+      "title": "Show HN: Type Fighter 2"
+    },
+    "50547374": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 639,
+      "discussion": "Discussion concentrated on exposure and disclosure timing: commenters debated whether public source commits or exploit-branded sites help attackers, and whether disabling HTTP/2 is practical for gRPC and related workloads. Technical replies distinguished the vulnerabilities\u2019 conditions and urged patching.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50547374",
+      "id": "50547374",
+      "kind": "story",
+      "score": 1490,
+      "sourceUrl": "https://www.wiz.io/blog/nginx-http2-rce-vulnerabilities",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.wiz.io/blog/nginx-http2-rce-vulnerabilities"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50547374"
+        }
+      ],
+      "story": "Wiz described two HTTP/2-related NGINX vulnerabilities, including an unauthenticated remote-code-execution issue under specific configurations. The report identified affected versions and listed patched NGINX OSS releases, while recommending upgrading or temporarily disabling HTTP/2 during remediation.",
+      "submittedAt": "2026-11-18T15:19:55Z",
+      "title": "Unauthenticated remote code execution in Nginx"
+    },
+    "50547980": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 93,
+      "discussion": "Readers found the consolidated catalog useful but stressed that migration pain is operational as well as technical: calendaring, identity/SSO, integrations, usability, and self-hosting burden. Zulip received positive firsthand reports; commenters disputed or refined particular recommendations and requested broader project-management coverage.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50547980",
+      "id": "50547980",
+      "kind": "show",
+      "score": 249,
+      "sourceUrl": "https://exitpath-ruddy.vercel.app/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://exitpath-ruddy.vercel.app/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50547980"
+        }
+      ],
+      "story": "ExitPath is a no-account, browser-local migration planner/catalog for leaving 19 proprietary tools, including Slack, Notion, Google Workspace, and Microsoft 365. It lists 41 open-source alternatives and 60 migration paths, adjusts effort grades by team size and hosting choice, and offers checklists; it explicitly says most catalog entries are unreviewed AI drafts.",
+      "submittedAt": "2026-11-18T16:04:43Z",
+      "title": "Show HN: ExitPath \u2013 Open-source ways out of Slack, Notion and Microsoft 365"
+    },
+    "50548161": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 57,
+      "discussion": "The project drew enthusiasm for its presentation, but a technically knowledgeable commenter alleged modeling and factual inaccuracies. The author said the work used NASA/JPL material, acknowledged that RTG fuel spheres should be paired and that the Sun detector was not named, and supplied source links. A separate exchange covered the uncertain cause of Voyager 1's memory failure and cited NASA's statement that it cannot be determined with certainty.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50548161",
+      "id": "50548161",
+      "kind": "show",
+      "score": 234,
+      "sourceUrl": "https://rshekhar.com/voyager/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://rshekhar.com/voyager/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50548161"
+        }
+      ],
+      "story": "An interactive Voyager project that lets visitors explore the two spacecraft and their story, from the mission scale down to a memory-chip/bit view. The landing page shows current distance and signal-time figures and links to journey and repair narratives.",
+      "submittedAt": "2026-11-18T16:18:51Z",
+      "title": "Show HN: Take Voyager 1 apart, down to a single memory chip"
+    },
+    "50548660": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 42,
+      "discussion": "Discussion centered on the maintainers' decision to close their main repository to outside contributors because of low-value automated PRs, while requesting high-quality issue reproductions. Readers asked how autonomy, plans, model/harness integration, agent identity, UX validation, and human approval work. The team said lower-risk work can be more automated and that sandbox preview environments support UI testing.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50548660",
+      "id": "50548660",
+      "kind": "show",
+      "score": 145,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50548660"
+        }
+      ],
+      "story": "Mastra Factory is an open-source, configurable agentic kanban system for software work, operated through a web UI and Slack. Its self-post says Mastra uses durable agents, memory, a cited Markdown wiki, PR-comment signals, cloud sandboxes, and a coding harness; it reports 238 Factory-opened-and-merged PRs and 630 human PRs in one week, alongside hosted and self-hosted options.",
+      "submittedAt": "2026-11-18T16:53:42Z",
+      "title": "Show HN: Mastra Factory, the open-source software factory we use to build Mastra"
+    },
+    "50552424": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 766,
+      "discussion": "The thread compared the announcement with other frontier models, questioned benchmarks and naming, and discussed practical performance, pricing, and product integration.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50552424",
+      "id": "50552424",
+      "kind": "story",
+      "score": 1030,
+      "sourceUrl": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-neon/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-4-neon/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50552424"
+        }
+      ],
+      "story": "Google announced Gemini 4 Neon, presenting it as a new Gemini model release with product capabilities and availability details on its official blog.",
+      "submittedAt": "2026-11-18T21:34:07Z",
+      "title": "Gemini 4 Neon"
+    },
+    "50553843": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 779,
+      "discussion": "Readers discussed valuation, access to public markets, allocation, and whether the offering changes Anthropic\u2019s incentives. The discussion overlapped with the concurrent Reuters story about the company\u2019s market debut.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50553843",
+      "id": "50553843",
+      "kind": "story",
+      "score": 414,
+      "sourceUrl": "https://www.anthropic.com/news/anthropic-prices-initial-public-offering",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.anthropic.com/news/anthropic-prices-initial-public-offering"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50553843"
+        }
+      ],
+      "story": "Anthropic announced the pricing of its initial public offering, including the share count and offering price, ahead of trading on Nasdaq. The announcement is a primary-company statement about the transaction.",
+      "submittedAt": "2026-11-18T23:30:09Z",
+      "title": "Anthropic prices initial public offering"
+    },
+    "50559749": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 85,
+      "discussion": "Readers liked the human-centered AI approach but pressed on privacy, encryption, data retention, demonstrations, mobile UX, and support for nonfiction and technical documents. The author accepted the privacy feedback and described ongoing iteration.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50559749",
+      "id": "50559749",
+      "kind": "show",
+      "score": 106,
+      "sourceUrl": "https://foolscap.works/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://foolscap.works/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50559749"
+        }
+      ],
+      "story": "Foolscap is a writing app that reads a book as it is written, identifies characters, ideas, and unresolved threads, and says it never writes text for the user. Its site says books can be made private and writing is not used to train AI.",
+      "submittedAt": "2026-11-19T13:21:20Z",
+      "title": "Show HN: Foolscap \u2013 a writing app that reads your book and never writes for you"
+    },
+    "50561515": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 100,
+      "discussion": "HN liked the stripped-back regional-news concept but focused on the politics filter: how items are classified, whether it will meet users' expectations, and what moderation entails. Other feedback covered moving story order after voting, missing comment/reply controls, open-source availability, state-level filtering, monetization, and the definition of the Midwest.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50561515",
+      "id": "50561515",
+      "kind": "show",
+      "score": 218,
+      "sourceUrl": "https://cornholenews.news",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://cornholenews.news"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50561515"
+        }
+      ],
+      "story": "Cornhole News is a Hacker News-style Midwest news aggregator with story voting, comments, RSS, newsletter signup, themes, and a politics visibility toggle. The live front page shows sourced regional headlines and labels political stories.",
+      "submittedAt": "2026-11-19T15:38:32Z",
+      "title": "Show HN: Cornhole News \u2013 A Hacker News inspired site for news across the Midwest"
+    },
+    "50562754": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 2081,
+      "discussion": "The thread centered on whether the IPO signals a near-term contraction in software employment or a productivity transition. Commenters argued that requirements, architecture, validation, operations, and accountability still need people, while others expected larger labor-market effects.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50562754",
+      "id": "50562754",
+      "kind": "story",
+      "score": 1056,
+      "sourceUrl": "https://www.reuters.com/business/finance/anthropics-historic-debut-put-ais-promise-peril-wall-st-test-2026-11-19/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.reuters.com/business/finance/anthropics-historic-debut-put-ais-promise-peril-wall-st-test-2026-11-19/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50562754"
+        }
+      ],
+      "story": "Reuters reported on Anthropic\u2019s Nasdaq debut after it priced 980 million Class A shares at $83 each and began trading under the symbol ANT on November 19, 2026. The story framed the IPO as a test of AI companies\u2019 valuations, profitability prospects, and broader social consequences.",
+      "submittedAt": "2026-11-19T17:02:40Z",
+      "title": "Anthropic\u2019s Nasdaq debut"
+    }
+  },
+  "revision": 1,
+  "scheduledAt": "2026-11-20T08:00:00Z",
+  "schemaVersion": 1,
+  "sections": [
+    {
+      "id": "votes",
+      "itemIds": [
+        "50522980",
+        "50500963",
+        "50489641",
+        "50547374",
+        "50535230",
+        "50530163",
+        "50507303",
+        "50538240",
+        "50493251",
+        "50562754"
+      ],
+      "qualifyingCount": 6220
+    },
+    {
+      "id": "comments",
+      "itemIds": [
+        "50562754",
+        "50500963",
+        "50489641",
+        "50535230",
+        "50553843",
+        "50552424",
+        "50532849",
+        "50484658",
+        "50521045",
+        "50542705"
+      ],
+      "qualifyingCount": 6220
+    },
+    {
+      "id": "ask",
+      "itemIds": [
+        "50484421",
+        "50520076",
+        "50510042",
+        "50484426",
+        "50494696",
+        "50513451",
+        "50488230",
+        "50491617",
+        "50480936",
+        "50481227"
+      ],
+      "qualifyingCount": 216
+    },
+    {
+      "id": "show",
+      "itemIds": [
+        "50497589",
+        "50487228",
+        "50547980",
+        "50548161",
+        "50491545",
+        "50561515",
+        "50532385",
+        "50497132",
+        "50548660",
+        "50544821",
+        "50496787",
+        "50523377",
+        "50497147",
+        "50559749",
+        "50511718",
+        "50482279",
+        "50497137",
+        "50525052",
+        "50504072",
+        "50517410",
+        "50517840",
+        "50502839",
+        "50533270",
+        "50517803",
+        "50520741"
+      ],
+      "qualifyingCount": 25
+    }
+  ],
+  "window": {
+    "end": "2026-11-20T08:00:00Z",
+    "start": "2026-11-13T08:00:00Z"
+  }
+}

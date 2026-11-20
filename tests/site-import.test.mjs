@@ -10,7 +10,8 @@ test('legacy import CLI validates then exclusively creates public output', async
   const tmp=await mkdtemp(path.join(tmpdir(),'twihn-import-'));
   try {
     const input=path.join(tmp,'reviewed.json'), meta=path.join(tmp,'metadata.json'), output=path.join(tmp,'issue.json');
-    await writeFile(input,JSON.stringify(legacy())); await writeFile(meta,JSON.stringify(metadata()));
+    const reviewed=legacy(); reviewed.sections[1].items=[];
+    await writeFile(input,JSON.stringify(reviewed)); await writeFile(meta,JSON.stringify(metadata()));
     const invoke=()=>spawnSync(process.execPath,['scripts/import-legacy.mjs',input,meta,output],{encoding:'utf8',timeout:10000});
     const result=invoke(); assert.equal(result.status,0,result.stderr); assert.deepEqual(JSON.parse(await readFile(output,'utf8')),fixture());
     const first=await readFile(output,'utf8'); assert.notEqual(invoke().status,0,'existing revision must never silently overwrite'); assert.equal(await readFile(output,'utf8'),first);

@@ -37,8 +37,8 @@ def validate(data: dict) -> list[dict]:
     if [g['heading'] for g in groups] != HEADINGS:
         raise ValueError('missing or reordered digest sections')
     items = [item for group in groups for item in group['items']]
-    if [len(g['items']) for g in groups[:3]] != [10, 10, 10]:
-        raise ValueError('first three sections must contain ten items each')
+    if len(groups[0]['items']) != 10 or len(groups[2]['items']) != 10 or len(groups[1]['items']) > 10:
+        raise ValueError('score and Ask sections must contain ten items; comments may contain up to ten remaining stories')
     ids = [str(item['id']) for item in items]
     if any(not x.isdecimal() for x in ids):
         raise ValueError('invalid HN ID')
@@ -57,6 +57,8 @@ def validate(data: dict) -> list[dict]:
     show_ids = {str(item['id']) for item in groups[3]['items']}
     if ordinary_ids & (ask_ids | show_ids) or ask_ids & show_ids:
         raise ValueError('Ask/Show IDs overlap other categories')
+    if {str(item['id']) for item in groups[0]['items']} & {str(item['id']) for item in groups[1]['items']}:
+        raise ValueError('ordinary rankings overlap')
     for item in items:
         for key in ('id', 'title', 'score', 'comments', 'created', 'story', 'discussion'):
             if key not in item or item[key] is None or str(item[key]).strip() == '':
@@ -85,7 +87,7 @@ def build(data: dict, *, recipient: str | None = None, sender: str | None = None
     if test:
         subject += ' [HTML test]'
     window = f"{start.strftime('%d %b %Y, %H:%M %Z')} – {end.strftime('%d %b %Y, %H:%M %Z')}"
-    note = 'Ranked independently by HN score and comments, so a story can appear in both rankings. All Show HN threads with 50+ points are included. Discussion themes are drawn from visible threads, not comment vote counts.'
+    note = 'Ranked by HN score and comments: score ranking takes precedence, so the discussion list contains the highest-commented remaining stories. All Show HN threads with 50+ points are included. Discussion themes are drawn from visible threads, not comment vote counts.'
     plain = [subject, '=' * len(subject), '', f'Window: {window} (Europe/London)', note, '']
     html_parts = [
         '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">',

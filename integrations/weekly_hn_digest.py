@@ -119,14 +119,13 @@ def render_item(index: int, story: dict) -> str:
 
 
 def sections(stories: list[dict], limit: int, show_min_score: int) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
-    # Keep category sections distinct. The two ordinary-story rankings are
-    # independent: a story can legitimately appear in both if it is among the
-    # top entries by both votes and comments.
+    # Keep category sections distinct. Score ranking has precedence: the
+    # discussion ranking contains the most-commented remaining ordinary stories.
     ordinary = [story for story in stories if not {"ask_hn", "show_hn"}.intersection(story.get("tags", []))]
     ask = [story for story in stories if "ask_hn" in story.get("tags", [])]
     show = [story for story in stories if "show_hn" in story.get("tags", []) and story["score"] >= show_min_score]
     by_score = rank(ordinary, "score")[:limit]
-    by_comments = rank(ordinary, "comments")[:limit]
+    by_comments = choose(ordinary, "comments", limit, {story["id"] for story in by_score})
     return by_score, by_comments, rank(ask, "comments")[:limit], rank(show, "score")
 
 
@@ -135,7 +134,7 @@ def markdown(stories: list[dict], start: dt.datetime, end: dt.datetime, limit: i
     local_start, local_end = start.astimezone(UK), end.astimezone(UK)
     title = f"Hacker News weekly roundup — {local_start.date().isoformat()} to {local_end.date().isoformat()}"
     window = f"Window: {local_start.strftime('%Y-%m-%d %H:%M %Z')} to {local_end.strftime('%Y-%m-%d %H:%M %Z')} (Europe/London)."
-    lines = [title, "=" * len(title), "", window, "", "Popularity is measured by Hacker News score (votes) and comment count. The vote and discussion rankings are independent, so a story can appear in both. All Show HN threads with at least 50 points are included.", "", f"## Top {limit} stories by votes", ""]
+    lines = [title, "=" * len(title), "", window, "", "Popularity is measured by Hacker News score (votes) and comment count. Score ranking takes precedence, so the discussion list contains the highest-commented remaining stories. All Show HN threads with at least 50 points are included.", "", f"## Top {limit} stories by votes", ""]
     lines.extend(render_item(i, item) for i, item in enumerate(by_score, 1))
     lines.extend(["", f"## Top {limit} discussed stories", ""])
     lines.extend(render_item(i, item) for i, item in enumerate(by_comments, 1))
