@@ -75,7 +75,7 @@ export function prepareArchiveTaggingInput(archive, issueId) {
   return envelope([...items.values()], archive.registry, archive.records, issueId, stableJSON(issues));
 }
 
-async function noSymlinks(target, directory = false) {
+export async function noSymlinks(target, directory = false) {
   const absolute = path.resolve(target), root = path.parse(absolute).root;
   let current = root;
   for (const component of absolute.slice(root.length).split(path.sep).filter(Boolean)) {
@@ -140,7 +140,7 @@ export async function checkDataTree(dataDir, publicApplication = false) {
 async function exists(filename) {
   try { await lstat(filename); return true; } catch (error) { if (error.code === 'ENOENT') return false; throw error; }
 }
-async function loadMigrationArchive(dataDir) {
+export async function loadMigrationArchive(dataDir) {
   const {issues,revisions} = await loadArchive(dataDir);
   const registryPath = path.join(dataDir,'tags.json');
   const registry = await exists(registryPath) ? validateRegistry(parseJSON(await readPrivateJSONBytes(registryPath))) : {schemaVersion:1,tags:[]};
@@ -205,7 +205,7 @@ async function loadApplicationArchive(dataDir, newIssue) {
   return {issues:baseIssues,revisions,registry,records};
 }
 
-async function atomicPublicJSON(filename, bytes, previous) {
+export async function atomicPublicJSON(filename, bytes, previous) {
   const parent = await noSymlinks(path.dirname(filename),true);
   const temporary = path.join(parent,`.tagging-${randomUUID()}.tmp`);
   try {
