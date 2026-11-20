@@ -27,9 +27,9 @@ export async function verifyDist(dist='dist') {
       assert.deepEqual([...html.matchAll(/data-hn-id="([1-9][0-9]*)"/g)].map(m=>m[1]),issue.sections.flatMap(s=>s.itemIds),'HTML item order parity');
       for (const item of Object.values(issue.items)) {
         for (const field of ['title','story','discussion']) assert.ok(html.includes(escape(item[field])),`HTML ${field} parity: ${item.id}`);
-        for (const disclosure of Object.values(item.availability)) assert.ok(html.includes(escape(disclosure.note)),'HTML disclosure parity');
+        assert.doesNotMatch(html,/Sources and availability/,'source disclosure is not rendered in HTML');
       }
-      if (issue.correction) assert.ok(html.includes(escape(issue.correction.note)),'HTML correction parity');
+      if (issue.correction) assert.doesNotMatch(html,/Correction — revision|Previous published revision/,'correction metadata is not rendered in HTML');
     }
   }
   const home = await readFile(`${dist}/index.html`,'utf8');

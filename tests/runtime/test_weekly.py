@@ -30,10 +30,11 @@ class WeeklyTests(unittest.TestCase):
             for item in group['items']:
                 del item['story']; del item['discussion']
         self.counts = [100, 100, 20, 0]
+        self.rankings = dict(score=[item['id'] for item in self.selected['sections'][0]['items']], comments=[item['id'] for item in self.selected['sections'][1]['items']])
         self.now = datetime(2026, 11, 13, 8, 1, tzinfo=timezone.utc)
 
     def begin(self):
-        with patch.object(weekly, 'collect_issue', return_value=(self.selected, self.counts)) as collect:
+        with patch.object(weekly, 'collect_issue', return_value=(self.selected, self.counts, self.rankings)) as collect:
             result = weekly.begin(self.work, self.issue, now=self.now)
         return result, collect
 

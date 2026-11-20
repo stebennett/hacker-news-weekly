@@ -6,6 +6,10 @@ export function legacy() {
 }
 export function metadata() {
   const provenance = id => ({sources:[{kind:'discussion',url:`https://news.ycombinator.com/item?id=${id}`}],availability:{story:{status:'text-post',note:'Original text post was reviewed.'},discussion:{status:'unavailable',note:'Discussion could not be retrieved; unverified.'}}});
-  return {issueId:'2026-11-13',scheduledAt:'2026-11-13T08:00:00Z',collectedAt:'2026-11-13T08:05:00Z',qualifyingCounts:[1,1,1,0],itemSources:{'1':provenance('1'),'2':provenance('2')}};
+  return {issueId:'2026-11-13',scheduledAt:'2026-11-13T08:00:00Z',collectedAt:'2026-11-13T08:05:00Z',qualifyingCounts:[1,1,1,0],ordinaryRankings:{score:['1'],comments:['1']},itemSources:{'1':provenance('1'),'2':provenance('2')}};
 }
-export const fixture = () => adaptLegacyReviewed(legacy(),metadata());
+export const fixture = () => {
+  const reviewed = legacy();
+  reviewed.sections[1].items = [];
+  return adaptLegacyReviewed(reviewed,metadata());
+};

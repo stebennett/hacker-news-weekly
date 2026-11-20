@@ -1,5 +1,10 @@
 {
   "collectedAt": "2026-11-20T08:02:08.661157Z",
+  "correction": {
+    "correctedAt": "2026-11-20T08:50:25Z",
+    "note": "Removed duplicate ordinary stories from the comments ranking. Score ranking now takes precedence; the comments list contains the next highest-commented stories.",
+    "previousRevision": 1
+  },
   "displayTimezone": "Europe/London",
   "issueId": "2026-11-20",
   "items": {
@@ -42,7 +47,7 @@
         }
       },
       "comments": 23,
-      "discussion": "Discussion covered authorship, disclosure, reader experience, provenance, labor, and whether a work’s value depends on its process or only on its result. Readers disagreed on how reliably AI authorship can be detected.",
+      "discussion": "Discussion covered authorship, disclosure, reader experience, provenance, labor, and whether a work\u2019s value depends on its process or only on its result. Readers disagreed on how reliably AI authorship can be detected.",
       "discussionUrl": "https://news.ycombinator.com/item?id=50481227",
       "id": "50481227",
       "kind": "ask",
@@ -69,7 +74,7 @@
         }
       },
       "comments": 3,
-      "discussion": "The brief thread praised the construction, asked about replaceable parts and cardboard gears, and noted the author’s accepted 40C3 talk. The author disclosed that design tools for gears and jigs were AI-assisted.",
+      "discussion": "The brief thread praised the construction, asked about replaceable parts and cardboard gears, and noted the author\u2019s accepted 40C3 talk. The author disclosed that design tools for gears and jigs were AI-assisted.",
       "discussionUrl": "https://news.ycombinator.com/item?id=50482279",
       "id": "50482279",
       "kind": "show",
@@ -87,7 +92,7 @@
       ],
       "story": "Carton Clock is a working pendulum clock built mainly from empty drink cartons, skewers, paper straws, string, weights, and hot glue. The project says it displays seconds, minutes, and hours and runs for a little over an hour when wound.",
       "submittedAt": "2026-11-13T12:00:18Z",
-      "title": "Show HN: Carton Clock – A working pendulum clock made from empty drink cartons"
+      "title": "Show HN: Carton Clock \u2013 A working pendulum clock made from empty drink cartons"
     },
     "50484421": {
       "availability": {
@@ -128,7 +133,7 @@
         }
       },
       "comments": 55,
-      "discussion": "Replies debated whether creativity is inherently recombinative, whether AlphaFold and mathematical work qualify, and whether usefulness requires autonomous invention. Participants disagreed about the post’s standard for novelty.",
+      "discussion": "Replies debated whether creativity is inherently recombinative, whether AlphaFold and mathematical work qualify, and whether usefulness requires autonomous invention. Participants disagreed about the post\u2019s standard for novelty.",
       "discussionUrl": "https://news.ycombinator.com/item?id=50484426",
       "id": "50484426",
       "kind": "ask",
@@ -155,7 +160,7 @@
         }
       },
       "comments": 752,
-      "discussion": "The thread debated whether AI improves programming today, what counts as better software, and whether complexity stems from technical choices, organizational incentives, or user demands. Readers also discussed the video’s claims about tooling and abstraction.",
+      "discussion": "The thread debated whether AI improves programming today, what counts as better software, and whether complexity stems from technical choices, organizational incentives, or user demands. Readers also discussed the video\u2019s claims about tooling and abstraction.",
       "discussionUrl": "https://news.ycombinator.com/item?id=50484658",
       "id": "50484658",
       "kind": "story",
@@ -173,7 +178,7 @@
       ],
       "story": "In a video discussion, Jonathan Blow and Wolf Tivy argued that AI has not yet made software meaningfully better despite its coding capabilities, emphasizing software complexity and the difference between generating code and improving systems.",
       "submittedAt": "2026-11-13T15:08:44Z",
-      "title": "Jonathan Blow – If AI solved coding, why is my software still the same? [video]"
+      "title": "Jonathan Blow \u2013 If AI solved coding, why is my software still the same? [video]"
     },
     "50487228": {
       "availability": {
@@ -205,7 +210,7 @@
       ],
       "story": "An interactive, isometric map of the San Francisco Bay Area rendered in a pixel-art-like visual style. The public landing page provides the map and a link to a making-of page, but exposes little implementation detail in its initial rendered text.",
       "submittedAt": "2026-11-13T17:58:37Z",
-      "title": "Show HN: Isometric SF – A pixel-art map of the SF Bay Area"
+      "title": "Show HN: Isometric SF \u2013 A pixel-art map of the SF Bay Area"
     },
     "50488230": {
       "availability": {
@@ -264,7 +269,7 @@
       ],
       "story": "NBC News reported that the FAA imposed a nationwide ground stop on departing flights and lifted it about 4.5 hours later, disrupting thousands of flights. The report described a safety-related systems incident and the subsequent restoration of departures.",
       "submittedAt": "2026-11-13T21:05:53Z",
-      "title": "FAA issues national ground stop – lifted 4.5 hours later"
+      "title": "FAA issues national ground stop \u2013 lifted 4.5 hours later"
     },
     "50491545": {
       "availability": {
@@ -337,7 +342,7 @@
         }
       },
       "comments": 651,
-      "discussion": "Commenters debated the credibility and implications of the allegation, Nvidia’s supply constraints, and whether startup financing can meaningfully distort demand. The thread also discussed competitive dynamics and the economics of AI infrastructure.",
+      "discussion": "Commenters debated the credibility and implications of the allegation, Nvidia\u2019s supply constraints, and whether startup financing can meaningfully distort demand. The thread also discussed competitive dynamics and the economics of AI infrastructure.",
       "discussionUrl": "https://news.ycombinator.com/item?id=50493251",
       "id": "50493251",
       "kind": "story",
@@ -478,7 +483,7 @@
       ],
       "story": "Fursoy Slice-1 is a 64-bit out-of-order superscalar RISC-V processor in SystemVerilog that boots Linux 6.6.50 and BusyBox under Sv39. The repository documents 2-wide execution, verification work, and pre-layout 500 MHz Nangate 45 nm timing closure.",
       "submittedAt": "2026-11-14T14:06:34Z",
-      "title": "Show HN: Fursoy – Out-of-order RV64IMAFDV core in SystemVerilog (Linux 6.6)"
+      "title": "Show HN: Fursoy \u2013 Out-of-order RV64IMAFDV core in SystemVerilog (Linux 6.6)"
     },
     "50497147": {
       "availability": {
@@ -510,7 +515,7 @@
       ],
       "story": "Agweb is an open-source macOS browser for coding agents, built on WebKit. It exposes a Playwright-like shell CLI, keeps agent tabs visible in one non-focus-stealing window, and suspends idle tabs.",
       "submittedAt": "2026-11-14T14:08:12Z",
-      "title": "Show HN: Agweb – a browser for agents that stays out of your way"
+      "title": "Show HN: Agweb \u2013 a browser for agents that stays out of your way"
     },
     "50497589": {
       "availability": {
@@ -572,7 +577,7 @@
           "url": "https://news.ycombinator.com/item?id=50500963"
         }
       ],
-      "story": "SpaceX’s Flight 15 page documented a Starship test flight that ended with a successful tower catch of the returning booster. The mission page presented the event as part of the company’s iterative flight-test program.",
+      "story": "SpaceX\u2019s Flight 15 page documented a Starship test flight that ended with a successful tower catch of the returning booster. The mission page presented the event as part of the company\u2019s iterative flight-test program.",
       "submittedAt": "2026-11-14T21:22:24Z",
       "title": "SpaceX catches the Starship to end Flight 15"
     },
@@ -604,7 +609,7 @@
           "url": "https://news.ycombinator.com/item?id=50502839"
         }
       ],
-      "story": "Jamaican Alphabet Font is an experimental font inspired by treating Jamaica’s flag as the letter X. It includes regular and connected variants, with colors and shapes encoded in the font and contextual features joining selected glyphs.",
+      "story": "Jamaican Alphabet Font is an experimental font inspired by treating Jamaica\u2019s flag as the letter X. It includes regular and connected variants, with colors and shapes encoded in the font and contextual features joining selected glyphs.",
       "submittedAt": "2026-11-15T00:56:45Z",
       "title": "Show HN: A custom font based on the Jamaican flag alphabet"
     },
@@ -638,7 +643,7 @@
       ],
       "story": "Gawain is a Python type-annotation checker that requires annotations on variables, parameters, returns, and class attributes, then invokes ty or pyrefly to check them.",
       "submittedAt": "2026-11-15T04:39:25Z",
-      "title": "Show HN: Gawain – Require type hints on all Python variables"
+      "title": "Show HN: Gawain \u2013 Require type hints on all Python variables"
     },
     "50507303": {
       "availability": {
@@ -711,7 +716,7 @@
         }
       },
       "comments": 21,
-      "discussion": "Players found the puzzle rewarding but some struggled with the initial mechanics and asked for clearer explanations of gear ratios, better feedback, and more use of screen space. The author’s HN note identified the game as a Fable 5.2 creation.",
+      "discussion": "Players found the puzzle rewarding but some struggled with the initial mechanics and asked for clearer explanations of gear ratios, better feedback, and more use of screen space. The author\u2019s HN note identified the game as a Fable 5.2 creation.",
       "discussionUrl": "https://news.ycombinator.com/item?id=50511718",
       "id": "50511718",
       "kind": "show",
@@ -730,6 +735,38 @@
       "story": "The Last Complication is a watchmaking puzzle game with staged benches and gear-ratio challenges. The linked game presents a workshop-like progression around assembling clock mechanisms.",
       "submittedAt": "2026-11-15T22:48:52Z",
       "title": "Show HN: The Last Complication, a Zachtronics-style watchmaking puzzle game"
+    },
+    "50512235": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original article retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 588,
+      "discussion": "Discussion both extended and challenged the founder-versus-executor framing. Commenters debated whether Nvidia should cannibalize its GPU business before rivals do, how custom chips and weaker CUDA lock-in could affect margins, and whether Apple and Microsoft are fair post-founder cautionary examples; unverified speculation about the departure was explicitly contested.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50512235",
+      "id": "50512235",
+      "kind": "story",
+      "score": 485,
+      "sourceUrl": "https://steveblank.com/2026/11/15/whats-next-for-nvidia/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://steveblank.com/2026/11/15/whats-next-for-nvidia/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50512235"
+        }
+      ],
+      "story": "Steve Blank argues that Jensen Huang\u2019s reported departure leaves Nvidia exposed to a founder-to-executor transition. He credits Huang with CUDA, the deep-learning pivot, and integrated AI datacenter systems, and says the board needs a successor able to operate today\u2019s business while repeatedly remaking it as hyperscalers develop their own chips.",
+      "submittedAt": "2026-11-15 23:55:55Z",
+      "title": "What's Next for Nvidia?"
     },
     "50513451": {
       "availability": {
@@ -786,9 +823,41 @@
           "url": "https://news.ycombinator.com/item?id=50517410"
         }
       ],
-      "story": "Unref is a Rust-based Python dead-code finder built on Ruff’s parser. Its HN post says it moved from Python to Rust and can check CPython in under a second.",
+      "story": "Unref is a Rust-based Python dead-code finder built on Ruff\u2019s parser. Its HN post says it moved from Python to Rust and can check CPython in under a second.",
       "submittedAt": "2026-11-16T13:30:30Z",
-      "title": "Show HN: Unref – A Python dead code finder built on Ruff's parser"
+      "title": "Show HN: Unref \u2013 A Python dead code finder built on Ruff's parser"
+    },
+    "50517488": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original article retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 556,
+      "discussion": "Commenters described misleading sale pricing as a longstanding retail practice and recommended price-history tools, comparison shopping, wishlists, and direct purchases. They also debated disclosure rules and methodology, noting the promoted-item sample and questions about marketplace versus Amazon pricing, while discussing broader complaints and defenses around Amazon\u2019s search, logistics, returns, and Prime.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50517488",
+      "id": "50517488",
+      "kind": "story",
+      "score": 970,
+      "sourceUrl": "http://groundworkcollaborative.org/news/amazons-decoy-deals-groundwork-investigation-reveals-nearly-1-in-3-black-friday-and-cyber-monday-deals-advertised-by-amazon-offered-no-savings-to-shoppers-nearly-1-in-10-w/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "http://groundworkcollaborative.org/news/amazons-decoy-deals-groundwork-investigation-reveals-nearly-1-in-3-black-friday-and-cyber-monday-deals-advertised-by-amazon-offered-no-savings-to-shoppers-nearly-1-in-10-w/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50517488"
+        }
+      ],
+      "story": "Groundwork Collaborative reported that, among more than 350 products featured on Amazon\u2019s Black Friday and Cyber Monday deal pages in 2024 and 2025, 29.1% were priced the same as or higher than at some point in the preceding 30 days and 9.4% cost more during the sale. These are the advocacy group\u2019s price-history findings; it calls for recent-low-price disclosure rules for advertised sales.",
+      "submittedAt": "2026-11-16 13:39:07Z",
+      "title": "Many of Amazon\u2019s Black Friday and Cyber Monday \u201cdeals\u201d offered no savings"
     },
     "50517803": {
       "availability": {
@@ -820,7 +889,7 @@
       ],
       "story": "Coral is an open-source, self-hosted gateway for agents that lets them write reusable TypeScript custom tools while enforcing policies and managed identities. The HN post says programs run in V8 isolates without direct network access or credentials.",
       "submittedAt": "2026-11-16T14:14:51Z",
-      "title": "Show HN: Coral – Open-source gateway where agents write their own tools"
+      "title": "Show HN: Coral \u2013 Open-source gateway where agents write their own tools"
     },
     "50517840": {
       "availability": {
@@ -852,7 +921,7 @@
       ],
       "story": "Emittr turns a rooted Android phone into a USB HID keyboard and mouse using the Linux USB gadget subsystem, intended for controlled or locked-down systems where host software cannot be installed. The author says it exposes a LAN web UI and does not store credentials on the rooted phone.",
       "submittedAt": "2026-11-16T14:18:15Z",
-      "title": "Show HN: Nobody blocks a keyboard – Rooted Android as a physical USB Deck"
+      "title": "Show HN: Nobody blocks a keyboard \u2013 Rooted Android as a physical USB Deck"
     },
     "50520076": {
       "availability": {
@@ -911,7 +980,7 @@
       ],
       "story": "FakeMetrics is a tool for making mock copies of familiar dashboards with explicitly made-up numbers for slides, demos, or jokes. The author described it as an experiment in screenshot-driven UI cloning.",
       "submittedAt": "2026-11-16T18:08:04Z",
-      "title": "Show HN: Fakemetrics.com – \"build in public\" like a superstar"
+      "title": "Show HN: Fakemetrics.com \u2013 \"build in public\" like a superstar"
     },
     "50521045": {
       "availability": {
@@ -973,7 +1042,7 @@
           "url": "https://news.ycombinator.com/item?id=50522980"
         }
       ],
-      "story": "Carnegie Mellon’s CS Learn launched free full lecture series on YouTube in subjects including machine learning, systems, software construction, architectures, AI agents, and production ML. The site says self-paced courseware, instant-feedback lessons, badges, and AI tutoring are planned, with several courses scheduled for January 2027.",
+      "story": "Carnegie Mellon\u2019s CS Learn launched free full lecture series on YouTube in subjects including machine learning, systems, software construction, architectures, AI agents, and production ML. The site says self-paced courseware, instant-feedback lessons, badges, and AI tutoring are planned, with several courses scheduled for January 2027.",
       "submittedAt": "2026-11-16T20:43:36Z",
       "title": "Carnegie Mellon is putting computer science courses on YouTube for free"
     },
@@ -1009,6 +1078,38 @@
       "submittedAt": "2026-11-16T21:14:39Z",
       "title": "Show HN: Open-source, real-time object tracking for live video feeds"
     },
+    "50524736": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original article retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 624,
+      "discussion": "Commenters debated both the practical case for Linux or reduced reliance on Windows and the significance of the telemetry. Some viewed executable-category logging as unsurprising diagnostics and distinguished local logs from uploaded data; others objected that collection occurs locally before optional upload choices and that categorizing specific AI tools is more intrusive than generic logging.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50524736",
+      "id": "50524736",
+      "kind": "story",
+      "score": 733,
+      "sourceUrl": "https://xusheng.dev/posts/windows-coding-agent-telemetry/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://xusheng.dev/posts/windows-coding-agent-telemetry/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50524736"
+        }
+      ],
+      "story": "The author reverse-engineered Windows 11\u2019s MissionControlAggregator.dll and found telemetry categories for named coding-agent executables, desktop agents, and developer tools. Their testing showed a renamed cmd.exe run as codex.exe set the Codex cohort bit; the article says queued diagnostic data contains categories rather than prompts, source code, or duration-of-use data, and recommends disabling optional diagnostic data to prevent upload.",
+      "submittedAt": "2026-11-16 22:58:20Z",
+      "title": "Windows 11 is collecting data on which coding agents and developer tools you use"
+    },
     "50525052": {
       "availability": {
         "discussion": {
@@ -1039,7 +1140,7 @@
       ],
       "story": "Sutra-OS is an open-source, self-hosted ontology platform for representing data as typed, linked, actionable units governed by rules with source traceability. The repository calls it beta and says portions of the model language, APIs, UI, and documentation remain unfinished.",
       "submittedAt": "2026-11-16T23:25:41Z",
-      "title": "Show HN: Sutra-OS – A self-hosted ontology platform"
+      "title": "Show HN: Sutra-OS \u2013 A self-hosted ontology platform"
     },
     "50530163": {
       "availability": {
@@ -1149,7 +1250,7 @@
         }
       },
       "comments": 8,
-      "discussion": "Readers welcomed more usable Trainium software but questioned benchmarks, metrics, model support, and the maturity of AWS’s ecosystem. The author and commenters discussed throughput reporting and the gap with Nvidia-oriented tooling.",
+      "discussion": "Readers welcomed more usable Trainium software but questioned benchmarks, metrics, model support, and the maturity of AWS\u2019s ecosystem. The author and commenters discussed throughput reporting and the gap with Nvidia-oriented tooling.",
       "discussionUrl": "https://news.ycombinator.com/item?id=50533270",
       "id": "50533270",
       "kind": "show",
@@ -1167,7 +1268,7 @@
       ],
       "story": "TrnRT is an open-source LLM inference engine for AWS Trainium, with NKI megakernels, a claimed 1M-token context capability, and an OpenAI-compatible API. The HN post described early GLM-5.3 Flash support and performance experiments on trn2 hardware.",
       "submittedAt": "2026-11-17T16:01:04Z",
-      "title": "Show HN: TrnRT – An open-source LLM inference engine for AWS Trainium"
+      "title": "Show HN: TrnRT \u2013 An open-source LLM inference engine for AWS Trainium"
     },
     "50535230": {
       "availability": {
@@ -1199,7 +1300,7 @@
       ],
       "story": "OpenAI introduced GPT-6.2 Astra and Sol as new models, describing Astra as the stronger model and Sol as a lower-latency, lower-cost option. The announcement positioned them for agentic and knowledge-work tasks.",
       "submittedAt": "2026-11-17T17:46:43Z",
-      "title": "GPT‑6.2 Astra and Sol"
+      "title": "GPT\u20116.2 Astra and Sol"
     },
     "50538240": {
       "availability": {
@@ -1232,6 +1333,38 @@
       "story": "Calif described Java4Shell, a remote-code-execution vulnerability affecting some OpenJDK Base64 processing paths. The report set out the affected conditions, proof-of-concept context, and remediation guidance.",
       "submittedAt": "2026-11-17T21:11:28Z",
       "title": "Java4Shell: RCE in OpenJDK when processing Base64"
+    },
+    "50540178": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original article retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 563,
+      "discussion": "The thread debated whether AI answers undermine publishers, hobby communities, and other sources that fund public information, or mainly displace low-value SEO and ad-heavy content. Commenters also discussed copyright, citations, paywalls, revenue sharing, Google\u2019s earlier incentives, and whether search should prioritize direct primary sources; the author acknowledged possible commercial-query bias in one dataset.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50540178",
+      "id": "50540178",
+      "kind": "story",
+      "score": 709,
+      "sourceUrl": "https://revscope.co/blog/search-seo-geo-2026/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://revscope.co/blog/search-seo-geo-2026/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50540178"
+        }
+      ],
+      "story": "RevScope argues that Google AI Overviews reduce outbound clicks, citing a randomized desktop-Chrome experiment in which visible Overviews averaged fewer external clicks and estimating an overall organic-click loss. The article combines that working paper with observational Pew and DataForSEO material, states limitations in the modeling and sampling, and finds little demonstrated value in GEO tactics beyond conventional SEO and reputable third-party presence.",
+      "submittedAt": "2026-11-18 00:17:58Z",
+      "title": "Google's AI answers reducing search traffic by 40%"
     },
     "50542705": {
       "availability": {
@@ -1309,7 +1442,7 @@
         }
       },
       "comments": 639,
-      "discussion": "Discussion concentrated on exposure and disclosure timing: commenters debated whether public source commits or exploit-branded sites help attackers, and whether disabling HTTP/2 is practical for gRPC and related workloads. Technical replies distinguished the vulnerabilities’ conditions and urged patching.",
+      "discussion": "Discussion concentrated on exposure and disclosure timing: commenters debated whether public source commits or exploit-branded sites help attackers, and whether disabling HTTP/2 is practical for gRPC and related workloads. Technical replies distinguished the vulnerabilities\u2019 conditions and urged patching.",
       "discussionUrl": "https://news.ycombinator.com/item?id=50547374",
       "id": "50547374",
       "kind": "story",
@@ -1359,7 +1492,7 @@
       ],
       "story": "ExitPath is a no-account, browser-local migration planner/catalog for leaving 19 proprietary tools, including Slack, Notion, Google Workspace, and Microsoft 365. It lists 41 open-source alternatives and 60 migration paths, adjusts effort grades by team size and hosting choice, and offers checklists; it explicitly says most catalog entries are unreviewed AI drafts.",
       "submittedAt": "2026-11-18T16:04:43Z",
-      "title": "Show HN: ExitPath – Open-source ways out of Slack, Notion and Microsoft 365"
+      "title": "Show HN: ExitPath \u2013 Open-source ways out of Slack, Notion and Microsoft 365"
     },
     "50548161": {
       "availability": {
@@ -1464,7 +1597,7 @@
         }
       },
       "comments": 779,
-      "discussion": "Readers discussed valuation, access to public markets, allocation, and whether the offering changes Anthropic’s incentives. The discussion overlapped with the concurrent Reuters story about the company’s market debut.",
+      "discussion": "Readers discussed valuation, access to public markets, allocation, and whether the offering changes Anthropic\u2019s incentives. The discussion overlapped with the concurrent Reuters story about the company\u2019s market debut.",
       "discussionUrl": "https://news.ycombinator.com/item?id=50553843",
       "id": "50553843",
       "kind": "story",
@@ -1514,7 +1647,7 @@
       ],
       "story": "Foolscap is a writing app that reads a book as it is written, identifies characters, ideas, and unresolved threads, and says it never writes text for the user. Its site says books can be made private and writing is not used to train AI.",
       "submittedAt": "2026-11-19T13:21:20Z",
-      "title": "Show HN: Foolscap – a writing app that reads your book and never writes for you"
+      "title": "Show HN: Foolscap \u2013 a writing app that reads your book and never writes for you"
     },
     "50561515": {
       "availability": {
@@ -1546,7 +1679,7 @@
       ],
       "story": "Cornhole News is a Hacker News-style Midwest news aggregator with story voting, comments, RSS, newsletter signup, themes, and a politics visibility toggle. The live front page shows sourced regional headlines and labels political stories.",
       "submittedAt": "2026-11-19T15:38:32Z",
-      "title": "Show HN: Cornhole News – A Hacker News inspired site for news across the Midwest"
+      "title": "Show HN: Cornhole News \u2013 A Hacker News inspired site for news across the Midwest"
     },
     "50562754": {
       "availability": {
@@ -1576,12 +1709,12 @@
           "url": "https://news.ycombinator.com/item?id=50562754"
         }
       ],
-      "story": "Reuters reported on Anthropic’s Nasdaq debut after it priced 980 million Class A shares at $83 each and began trading under the symbol ANT on November 19, 2026. The story framed the IPO as a test of AI companies’ valuations, profitability prospects, and broader social consequences.",
+      "story": "Reuters reported on Anthropic\u2019s Nasdaq debut after it priced 980 million Class A shares at $83 each and began trading under the symbol ANT on November 19, 2026. The story framed the IPO as a test of AI companies\u2019 valuations, profitability prospects, and broader social consequences.",
       "submittedAt": "2026-11-19T17:02:40Z",
-      "title": "Anthropic’s Nasdaq debut"
+      "title": "Anthropic\u2019s Nasdaq debut"
     }
   },
-  "revision": 1,
+  "revision": 2,
   "scheduledAt": "2026-11-20T08:00:00Z",
   "schemaVersion": 1,
   "sections": [
@@ -1604,16 +1737,16 @@
     {
       "id": "comments",
       "itemIds": [
-        "50562754",
-        "50500963",
-        "50489641",
-        "50535230",
         "50553843",
         "50552424",
         "50532849",
         "50484658",
         "50521045",
-        "50542705"
+        "50542705",
+        "50524736",
+        "50512235",
+        "50540178",
+        "50517488"
       ],
       "qualifyingCount": 6220
     },

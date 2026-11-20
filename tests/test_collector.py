@@ -23,9 +23,11 @@ class CollectorTests(unittest.TestCase):
  def test_reject_partial_or_naive_bounds(self):
   with self.assertRaises(ValueError):c.collect(7,start=dt.datetime.now(dt.timezone.utc))
   with self.assertRaises(ValueError):c.collect(7,start=dt.datetime(2026,1,1),end=dt.datetime(2026,1,8))
- def test_independent_rankings(self):
+ def test_score_ranking_takes_precedence_over_comments(self):
   data=[{'id':str(i),'score':100-i,'comments':100-i,'tags':[]} for i in range(15)]
   votes,comments,ask,show=c.sections(data,10,50)
-  self.assertEqual(votes,comments);self.assertEqual(len(votes),10)
+  self.assertEqual([item['id'] for item in votes],[str(i) for i in range(10)])
+  self.assertEqual([item['id'] for item in comments],[str(i) for i in range(10,15)])
+  self.assertFalse({item['id'] for item in votes}&{item['id'] for item in comments})
 
 if __name__=='__main__':unittest.main()

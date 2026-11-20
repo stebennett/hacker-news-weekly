@@ -38,9 +38,9 @@ test('fixture build: served routes, escaping, revisions, archive ordering, repea
     const base=`http://127.0.0.1:${server.address().port}`;
     for (const route of ['/','/issues/2026-11-13/','/issues/2026-11-06/','/data/issues/2026-11-13.json','/data/revisions/2026-11-06/v1.json','/data/index.json','/data/latest.json','/build-manifest.json','/schema/issue.schema.json']) assert.equal((await fetch(base+route)).status,200,route);
     const html=await (await fetch(base+'/issues/2026-11-13/')).text();
-    assert.doesNotMatch(html,/<script\b|<img\b/i); assert.match(html,/&lt;script&gt;/); assert.match(html,/unverified/); assert.match(html,/None met the 50-point threshold/);
-    assert.equal((html.match(/data-hn-id="1"/g)||[]).length,2,'ordinary item rendered in both rankings');
-    const corrected=await (await fetch(base+'/issues/2026-11-06/')).text(); assert.match(corrected,/Correction — revision 2/);
+    assert.doesNotMatch(html,/<script\b|<img\b/i); assert.match(html,/&lt;script&gt;/); assert.doesNotMatch(html,/Sources and availability|unverified/); assert.match(html,/None met the 50-point threshold/);
+    assert.equal((html.match(/data-hn-id="1"/g)||[]).length,1,'ordinary item is rendered only in its highest-precedence ranking');
+    const corrected=await (await fetch(base+'/issues/2026-11-06/')).text(); assert.doesNotMatch(corrected,/Correction — revision 2|Collected|Reviewed JSON|Issue permalink/);
     assert.deepEqual((await (await fetch(base+'/data/index.json')).json()).map(x=>x.issueId),['2026-11-13','2026-11-06']);
     assert.deepEqual(await (await fetch(base+'/data/latest.json')).json(),latest);
     await writeFile(`${dist}/index.html`,'tampered'); await assert.rejects(verifyDist(dist),/digest\/inventory parity/);
