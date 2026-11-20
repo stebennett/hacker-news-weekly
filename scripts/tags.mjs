@@ -11,6 +11,9 @@ addFormats(ajv);
 const registryStructural = ajv.compile(registrySchema);
 const storyStructural = ajv.compile(storySchema);
 const labelStructural = ajv.compile(registrySchema.properties.tags.items.properties.label);
+const storyIdStructural = ajv.compile(storySchema.properties.id);
+const tagSlugsStructural = ajv.compile(storySchema.properties.tagSlugs);
+const submittedAtStructural = ajv.compile({type:'string',format:'date-time',pattern:'Z$'});
 const requireThat = (condition, message) => { if (!condition) throw new Error(message); };
 
 export function normalizeLabel(label) {
@@ -82,6 +85,52 @@ export function projectStories(issues, records, registry) {
   }
   for (const tag of registry.tags) requireThat(usedTags.has(tag.slug), `unused registry tag: ${tag.slug}`);
   return stories;
+}
+
+export const pageSize = 20;
+
+const newestFirst = (a, b) => {
+  const time = Date.parse(b.item.submittedAt) - Date.parse(a.item.submittedAt);
+  if (time) return time;
+  const aId = BigInt(a.item.id), bId = BigInt(b.item.id);
+  return aId === bId ? 0 : aId > bId ? -1 : 1;
+};
+const pageUrl = (slug, page) => `/tags/${slug}/${page === 1 ? '' : `${page}/`}`;
+
+export function tagArchivePages(stories, registry) {
+  requireThat(Array.isArray(stories), 'stories must be an array');
+  validateRegistry(registry);
+  const slugs = new Set(registry.tags.map(tag => tag.slug));
+  // Validate the fields consumed here; projectStories owns reviewed issue facts
+  // and exact references/coverage, including rejection of orphan registry tags.
+  for (const story of stories) {
+    requireThat(storyIdStructural(story?.item?.id), 'Invalid resolved story ID');
+    requireThat(submittedAtStructural(story.item.submittedAt) && Number.isFinite(Date.parse(story.item.submittedAt)), 'Invalid story submittedAt timestamp');
+    requireThat(tagSlugsStructural(story.tagSlugs), 'Invalid story tagSlugs');
+    requireSorted(story.tagSlugs, 'story tagSlugs');
+    for (const slug of story.tagSlugs) requireThat(slugs.has(slug), `unknown tag reference: ${slug}`);
+  }
+
+  const pages = [];
+  for (const tag of registry.tags) {
+    const unique = new Map();
+    for (const story of stories) {
+      if (story.tagSlugs.includes(tag.slug) && !unique.has(story.item.id)) unique.set(story.item.id, story);
+    }
+    const ordered = [...unique.values()].sort(newestFirst);
+    const storyCount = ordered.length, pageCount = Math.ceil(storyCount / pageSize);
+    for (let page = 1; page <= pageCount; page++) {
+      const offset = (page - 1) * pageSize;
+      pages.push({
+        tag, page, pageCount, storyCount,
+        stories:ordered.slice(offset, offset + pageSize),
+        url:pageUrl(tag.slug, page),
+        previousUrl:page === 1 ? null : pageUrl(tag.slug, page - 1),
+        nextUrl:page === pageCount ? null : pageUrl(tag.slug, page + 1)
+      });
+    }
+  }
+  return pages;
 }
 
 export async function loadStoryArchive(dataDir = process.env.TWIHN_DATA_DIR || path.resolve('data')) {

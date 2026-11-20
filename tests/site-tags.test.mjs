@@ -383,3 +383,132 @@ test('retained old revisions supply no extra stories or stale facts and preserve
   await rm(path.join(dataDir, `revisions/${old.issueId}/v1.json`));
   await assert.rejects(tags.loadStoryArchive(dataDir), /missing retained revision/i);
 });
+
+// Page tests operate on resolved stories, not fabricated issue windows/rankings.
+function pageStory(id, submittedAt = '2026-11-10T12:00:00Z', tagSlugs = ['ai']) {
+  return {item:{id,submittedAt},tagSlugs,issueIds:['2026-11-13'],sourceIssueId:'2026-11-13'};
+}
+
+const archiveIds = pages => pages.flatMap(page => page.stories.map(story => story.item.id));
+
+function deepFreeze(value) {
+  if (value && typeof value === 'object') {
+    Object.values(value).forEach(deepFreeze);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+test('tag archive page size is fixed at twenty stories', () => {
+  assert.equal(tags.pageSize, 20);
+});
+
+for (const [size, expectedPages] of [[0,0],[1,1],[19,1],[20,1],[21,2],[40,2],[41,3]]) {
+  test(`tag archive paginates ${size} stories into ${expectedPages} complete pages`, () => {
+    const stories = Array.from({length:size}, (_, i) => pageStory(String(i + 1)));
+    const pages = tags.tagArchivePages(stories, registry);
+    const expectedIds = Array.from({length:size}, (_, i) => String(size - i));
+    assert.equal(pages.length, expectedPages);
+    assert.deepEqual(archiveIds(pages), expectedIds);
+    assert.equal(new Set(archiveIds(pages)).size, size);
+    for (let i = 0; i < expectedPages; i++) {
+      const page = i + 1;
+      assert.deepEqual(Object.keys(pages[i]).sort(),
+        ['tag','page','pageCount','storyCount','stories','url','previousUrl','nextUrl'].sort());
+      assert.deepEqual(pages[i], {
+        tag:registry.tags[0], page, pageCount:expectedPages, storyCount:size,
+        stories:expectedIds.slice(i * 20, (i + 1) * 20).map(id => stories[Number(id) - 1]),
+        url:page === 1 ? '/tags/ai/' : `/tags/ai/${page}/`,
+        previousUrl:page === 1 ? null : page === 2 ? '/tags/ai/' : `/tags/ai/${page - 1}/`,
+        nextUrl:page === expectedPages ? null : `/tags/ai/${page + 1}/`
+      });
+      assert.equal(pages[i].stories.length, i === expectedPages - 1 ? size - i * 20 : 20);
+      for (const url of [pages[i].url,pages[i].previousUrl,pages[i].nextUrl]) {
+        if (url !== null) assert.doesNotMatch(url, /\/1\//);
+      }
+    }
+  });
+}
+
+test('tag archive sorts timestamps first and breaks ties by exact numeric HN ID descending', () => {
+  const stories = [
+    pageStory('9007199254740992'), pageStory('9'), pageStory('9007199254740993'), pageStory('10'),
+    pageStory('1', '2026-11-11T00:00:00Z'),
+    pageStory('999999999999999999999999999', '2026-11-09T23:59:59Z')
+  ];
+  const expected = ['1','9007199254740993','9007199254740992','10','9','999999999999999999999999999'];
+  for (const input of [stories,[...stories].reverse(),[...stories.slice(2),...stories.slice(0,2)]]) {
+    assert.deepEqual(archiveIds(tags.tagArchivePages(input, registry)), expected);
+  }
+});
+
+test('tag archive emits every populated tag in canonical slug order with independent membership', () => {
+  const value = makeRegistry([
+    {slug:'ai',label:'Z topic'}, {slug:'empty',label:'Empty'}, {slug:'security',label:'A topic'}
+  ]);
+  const shared = pageStory('2', undefined, ['ai','security']);
+  const stories = [pageStory('1', undefined, ['security']),shared,pageStory('3')];
+  const pages = tags.tagArchivePages(stories, value);
+  assert.deepEqual(pages.map(page => [page.tag.slug,page.url,page.storyCount]),
+    [['ai','/tags/ai/',2],['security','/tags/security/',2]]);
+  assert.deepEqual(pages.map(page => archiveIds([page])), [['3','2'],['2','1']]);
+  for (const page of pages) assert.equal(page.stories.filter(story => story.item.id === '2').length, 1);
+  assert.deepEqual(tags.tagArchivePages([], makeRegistry([])), []);
+});
+
+test('tag archive deduplicates IDs within each tag before counting and slicing pages', () => {
+  const stories = Array.from({length:21}, (_, i) => pageStory(String(i + 1), undefined, ['ai','security']));
+  const repeated = [stories[0],...stories,structuredClone(stories[20]),...stories];
+  const pages = tags.tagArchivePages(repeated, multiple);
+  assert.deepEqual(pages.map(page => [page.tag.slug,page.page,page.pageCount,page.storyCount,page.stories.length]),
+    [['ai',1,2,21,20],['ai',2,2,21,1],['security',1,2,21,20],['security',2,2,21,1]]);
+  for (const slug of ['ai','security']) {
+    const ids = archiveIds(pages.filter(page => page.tag.slug === slug));
+    assert.deepEqual(ids, Array.from({length:21}, (_, i) => String(21 - i)));
+    assert.equal(new Set(ids).size, 21);
+  }
+});
+
+test('tag archive does not mutate caller arrays, stories or registry', () => {
+  const stories = deepFreeze([pageStory('1'),pageStory('3'),pageStory('2')]);
+  const value = deepFreeze(structuredClone(registry));
+  const before = structuredClone({stories,registry:value});
+  const pages = tags.tagArchivePages(stories, value);
+  assert.deepEqual(archiveIds(pages), ['3','2','1']);
+  assert.deepEqual({stories,registry:value}, before);
+  assert.notEqual(pages[0].stories, stories);
+  assert.equal(pages[0].stories[0], stories[1]);
+});
+
+test('tag archive validates registries before generating routes even for no stories', () => {
+  for (const value of [null, {...registry,private:true},
+    makeRegistry([{slug:'../ai',label:'AI'}]), makeRegistry([{slug:'ai\n',label:'AI'}]),
+    makeRegistry([...multiple.tags].reverse())]) {
+    assert.throws(() => tags.tagArchivePages([], value), /registry|sort|order/i);
+  }
+});
+
+test('tag archive rejects malformed story arrays and literal IDs before sorting', () => {
+  for (const value of [null, undefined, {}, 'stories']) {
+    assert.throws(() => tags.tagArchivePages(value, registry), /array/i);
+  }
+  for (const story of [null, {}, {item:null}, ...['', '0', '01', '+1', '1e3', '1\n', '../1', 1, null]
+    .map(id => pageStory(id))]) {
+    assert.throws(() => tags.tagArchivePages([story], registry), /story|id/i);
+  }
+});
+
+test('tag archive rejects missing, invalid and non-text submission timestamps', () => {
+  for (const submittedAt of [null, undefined, 0, '', 'not a date', '2026-02-30T12:00:00Z',
+    '2026-11-10', '2026-11-10T12:00:00Z\n']) {
+    const story = pageStory('1'); story.item.submittedAt = submittedAt;
+    assert.throws(() => tags.tagArchivePages([story], registry), /submittedAt|timestamp/i);
+  }
+});
+
+test('tag archive rejects malformed, noncanonical and unknown tag memberships', () => {
+  assert.equal(typeof tags.tagArchivePages, 'function');
+  for (const tagSlugs of [null, 'ai', [], ['ai','ai'], ['../ai'], ['ai\n'], ['unknown'], ['security','ai']]) {
+    assert.throws(() => tags.tagArchivePages([pageStory('1', undefined, tagSlugs)], multiple), /tag|sort|order/i);
+  }
+});
