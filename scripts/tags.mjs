@@ -274,21 +274,27 @@ export function tagArchivePages(stories, registry) {
   return pages;
 }
 
-export async function loadStoryArchive(dataDir = process.env.TWIHN_DATA_DIR || path.resolve('data')) {
+export async function loadStoryArchive(dataDir = process.env.TWIHN_DATA_DIR || path.resolve('data'), {includeSourceBytes = false} = {}) {
   const {issues, revisions} = await loadArchive(dataDir);
   const registryPath = path.join(dataDir, 'tags.json');
   requireThat((await lstat(registryPath)).isFile(), 'tag registry path must be a regular file');
-  const registry = validateRegistry(JSON.parse(await readFile(registryPath, 'utf8')));
+  // Validate from the same once-read bytes used by artifact export/parity checks.
+  const registryBytes = await readFile(registryPath);
+  const registry = validateRegistry(JSON.parse(registryBytes.toString('utf8')));
+  const sourceBytes = includeSourceBytes ? {registry:registryBytes,records:new Map()} : undefined;
   const storiesDir = path.join(dataDir, 'stories');
   requireThat((await lstat(storiesDir)).isDirectory(), 'stories path must be a regular directory');
   const records = [];
   for (const entry of await readdir(storiesDir, {withFileTypes:true})) {
     // The negative lookahead anchors the absolute end, unlike $ before a newline.
     requireThat(entry.isFile() && /^[1-9][0-9]*\.json(?![\s\S])/u.test(entry.name), `unexpected story path: ${entry.name}`);
-    const record = validateStoryRecord(JSON.parse(await readFile(path.join(storiesDir, entry.name), 'utf8')), registry);
+    const bytes = await readFile(path.join(storiesDir, entry.name));
+    const record = validateStoryRecord(JSON.parse(bytes.toString('utf8')), registry);
     requireThat(entry.name === `${record.id}.json`, `filename/story ID mismatch: ${entry.name}`);
     records.push(record);
+    if (sourceBytes) sourceBytes.records.set(record.id,bytes);
   }
   const stories = projectStories(issues, records, registry);
-  return {issues, revisions, registry, records, stories};
+  const archive = {issues, revisions, registry, records, stories};
+  return sourceBytes ? {...archive,sourceBytes} : archive;
 }

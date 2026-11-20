@@ -86,7 +86,7 @@ export async function verifyDist(dist='dist') {
   for (const file of files) assert.ok(allowed.has(file) || /^_astro\/[A-Za-z0-9_.-]+\.css$/.test(file),`unexpected public artifact ${file}`);
   for (const file of required) assert.ok(present.has(file),`missing public artifact ${file}`);
   assert.deepEqual(files.filter(file=>file.endsWith('.html')),htmlRoutes.sort(),'HTML route inventory parity');
-  for (const [name,expected] of Object.entries(data)) assert.equal(await readFile(`${dist}/${name}`,'utf8'),expected,`data parity ${name}`);
+  for (const [name,expected] of Object.entries(data)) assert.deepEqual(await readFile(`${dist}/${name}`),Buffer.from(expected),`data parity ${name}`);
   const manifest = JSON.parse(await readFile(`${dist}/build-manifest.json`,'utf8'));
   if (process.env.TWIHN_SOURCE_REVISION) assert.equal(manifest.sourceRevision,process.env.TWIHN_SOURCE_REVISION);
   assert.equal(stableJSON(manifest),stableJSON(await makeManifest(dist,manifest.sourceRevision,issues)),'artifact digest/inventory parity');

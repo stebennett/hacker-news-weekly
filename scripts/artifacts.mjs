@@ -15,11 +15,11 @@ export async function inventory(root, prefix='') {
   return files.sort();
 }
 export async function expectedData(dataDir) {
-  const archive = await loadStoryArchive(dataDir);
+  const {sourceBytes,...archive} = await loadStoryArchive(dataDir,{includeSourceBytes:true});
   const {issues,revisions,registry,records,stories} = archive;
-  const data = {'data/index.json':stableJSON(issues.map(x => ({issueId:x.issueId,revision:x.revision,scheduledAt:x.scheduledAt,url:`/issues/${x.issueId}/`,dataUrl:`/data/issues/${x.issueId}.json`}))),'data/latest.json':stableJSON(issues[0] ?? null),'schema/issue.schema.json':stableJSON(schema),'data/tags.json':stableJSON(registry)};
+  const data = {'data/index.json':stableJSON(issues.map(x => ({issueId:x.issueId,revision:x.revision,scheduledAt:x.scheduledAt,url:`/issues/${x.issueId}/`,dataUrl:`/data/issues/${x.issueId}.json`}))),'data/latest.json':stableJSON(issues[0] ?? null),'schema/issue.schema.json':stableJSON(schema),'data/tags.json':sourceBytes.registry};
   for (const name of ['tags','story']) data[`schema/${name}.schema.json`] = stableJSON(JSON.parse(await readFile(`schema/${name}.schema.json`,'utf8')));
-  for (const record of records) data[`data/stories/${record.id}.json`] = stableJSON(record);
+  for (const record of records) data[`data/stories/${record.id}.json`] = sourceBytes.records.get(record.id);
   for (const issue of issues) data[`data/issues/${issue.issueId}.json`] = stableJSON(issue);
   for (const issue of revisions) data[`data/revisions/${issue.issueId}/v${issue.revision}.json`] = stableJSON(issue);
   return {...archive,data,pages:tagArchivePages(stories,registry)};

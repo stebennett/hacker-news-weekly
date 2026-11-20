@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import { isolatedBuildRoot, runBuild } from './site-artifact-fixtures.mjs';
 import { createServer } from 'node:http';
 import path from 'node:path';
@@ -257,6 +258,92 @@ test('real static tag routes serve all 41 unique stories in 20/20/1 pages with e
   } finally {
     for (const [key,value] of [['TWIHN_DATA_DIR',previous.data],['TWIHN_SOURCE_REVISION',previous.revision]]) if (value===undefined) delete process.env[key]; else process.env[key]=value;
   }
+});
+
+async function noncanonicalArchive(t) {
+  const data=await writeTagArchive(t), archive=await loadStoryArchive(data);
+  const record=archive.records.find(record=>record.id==='2');
+  const raw={
+    'tags.json':Buffer.from(` \r\n${JSON.stringify({tags:archive.registry.tags,schemaVersion:1},null,'\t')}\r\n\r\n`),
+    'stories/2.json':Buffer.from(`\t${JSON.stringify({issueIds:record.issueIds,tagSlugs:record.tagSlugs,id:record.id,schemaVersion:1})}\n\n`)
+  };
+  for (const [name,bytes] of Object.entries(raw)) {
+    assert.notDeepEqual(bytes,Buffer.from(stableJSON(JSON.parse(bytes.toString('utf8')))),'fixture must use accepted noncanonical formatting');
+    await writeFile(path.join(data,name),bytes);
+  }
+  assert.deepEqual(await loadStoryArchive(data),archive,'historical formatting is already accepted by the default loader');
+  return {data,archive,raw};
+}
+
+test('real build preserves historical tag/story source bytes and rejects canonicalized exports with fresh hashes', {timeout:60000}, async t=>{
+  const {data,archive,raw}=await noncanonicalArchive(t), dist=path.join(data,'output');
+  const names=await inventory(data);
+  const before=await Promise.all(names.map(name=>readFile(path.join(data,name))));
+  await build(data,dist);
+  const get=await serve(t,dist);
+  const previous={data:process.env.TWIHN_DATA_DIR,revision:process.env.TWIHN_SOURCE_REVISION};
+  try {
+    process.env.TWIHN_DATA_DIR=data; process.env.TWIHN_SOURCE_REVISION='tag-route-fixture';
+    await verifyDist(dist); // Valid control before same-value byte tampering.
+    for (const [name,bytes] of Object.entries(raw)) {
+      await t.test(`exact source/export parity for ${name}`,async()=>{
+        assert.deepEqual(await readFile(path.join(dist,'data',name)),bytes);
+        assert.deepEqual(Buffer.from(await get(`/data/${name}`)),bytes,'HTTP readback retains historical whitespace/key order');
+      });
+      await t.test(`canonicalizing ${name} fails independently of refreshed manifest`,async()=>{
+        const target=path.join(dist,'data',name), original=await readFile(target);
+        try {
+          await writeFile(target,stableJSON(JSON.parse(bytes.toString('utf8'))));
+          await writeFile(path.join(dist,'build-manifest.json'),stableJSON(await makeManifest(dist,'tag-route-fixture',archive.issues)));
+          await assert.rejects(verifyDist(dist),new RegExp(`data parity data/${name.replaceAll('.','\\.')}`));
+        } finally {await writeFile(target,original);}
+      });
+    }
+    await writeFile(path.join(dist,'build-manifest.json'),stableJSON(await makeManifest(dist,'tag-route-fixture',archive.issues)));
+    await verifyDist(dist);
+    assert.deepEqual(await Promise.all(names.map(name=>readFile(path.join(data,name)))),before,'build and verification never rewrite source data');
+  } finally {
+    for (const [key,value] of [['TWIHN_DATA_DIR',previous.data],['TWIHN_SOURCE_REVISION',previous.revision]]) if (value===undefined) delete process.env[key]; else process.env[key]=value;
+  }
+});
+
+test('expectedData exports each once-read validated snapshot even if tag/story files change after reading', async t=>{
+  const {data,archive}=await noncanonicalArchive(t), dist=path.join(data,'snapshot-output');
+  const names=['tags.json',...archive.records.map(record=>`stories/${record.id}.json`)];
+  const script=`import assert from 'node:assert/strict';
+    import fs from 'node:fs/promises';
+    import path from 'node:path';
+    import {syncBuiltinESMExports} from 'node:module';
+    const data=${JSON.stringify(data)}, dist=${JSON.stringify(dist)};
+    const readFile=fs.readFile, counts=new Map(), originals=new Map();
+    for (const name of ${JSON.stringify(names)}) {
+      const file=path.join(data,name);
+      counts.set(file,0); originals.set(name,await readFile(file));
+    }
+    fs.readFile=async (file,...args)=>{
+      const bytes=await readFile(file,...args);
+      if (counts.has(file)) {
+        counts.set(file,counts.get(file)+1);
+        await fs.writeFile(file,'{"not":"valid public data"}');
+      }
+      return bytes;
+    };
+    syncBuiltinESMExports();
+    const {expectedData,exportData}=await import('./scripts/artifacts.mjs');
+    assert.equal(typeof expectedData,'function'); assert.equal(typeof exportData,'function');
+    const expected=await expectedData(data);
+    assert.deepEqual(expected.registry,${JSON.stringify(archive.registry)});
+    assert.deepEqual([...expected.records].sort((a,b)=>a.id.localeCompare(b.id)),${JSON.stringify([...archive.records].sort((a,b)=>a.id.localeCompare(b.id)))});
+    assert.equal(Object.hasOwn(expected,'sourceBytes'),false,'byte context stays out of artifact metadata');
+    await exportData(dist,expected);
+    for (const [name,bytes] of originals) {
+      assert.deepEqual(Buffer.from(expected.data['data/'+name]),bytes,'expectedData uses the validated original bytes: '+name);
+      assert.deepEqual(await readFile(path.join(dist,'data',name)),bytes,'exportData reuses the validated snapshot: '+name);
+      assert.equal(counts.get(path.join(data,name)),1,'read each registry/story source exactly once: '+name);
+      assert.equal(await readFile(path.join(data,name),'utf8'),'{"not":"valid public data"}','source changed at the read boundary');
+    }`;
+  const result=spawnSync(process.execPath,['--input-type=module','-e',script],{encoding:'utf8',timeout:15000});
+  assert.equal(result.status,0,result.stdout+result.stderr);
 });
 
 test('explicit empty registry serves a neutral tag directory with no invented topic archives', {timeout:60000}, async t => {
