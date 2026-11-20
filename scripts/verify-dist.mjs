@@ -29,7 +29,7 @@ export async function verifyDist(dist='dist') {
         for (const field of ['title','story','discussion']) assert.ok(html.includes(escape(item[field])),`HTML ${field} parity: ${item.id}`);
         assert.doesNotMatch(html,/Sources and availability/,'source disclosure is not rendered in HTML');
       }
-      if (issue.correction) assert.ok(html.includes(escape(issue.correction.note)),'HTML correction parity');
+      if (issue.correction) assert.doesNotMatch(html,/Correction — revision|Previous published revision/,'correction metadata is not rendered in HTML');
     }
   }
   const home = await readFile(`${dist}/index.html`,'utf8');

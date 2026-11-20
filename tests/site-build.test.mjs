@@ -40,7 +40,7 @@ test('fixture build: served routes, escaping, revisions, archive ordering, repea
     const html=await (await fetch(base+'/issues/2026-11-13/')).text();
     assert.doesNotMatch(html,/<script\b|<img\b/i); assert.match(html,/&lt;script&gt;/); assert.doesNotMatch(html,/Sources and availability|unverified/); assert.match(html,/None met the 50-point threshold/);
     assert.equal((html.match(/data-hn-id="1"/g)||[]).length,1,'ordinary item is rendered only in its highest-precedence ranking');
-    const corrected=await (await fetch(base+'/issues/2026-11-06/')).text(); assert.match(corrected,/Correction — revision 2/);
+    const corrected=await (await fetch(base+'/issues/2026-11-06/')).text(); assert.doesNotMatch(corrected,/Correction — revision 2|Collected|Reviewed JSON|Issue permalink/);
     assert.deepEqual((await (await fetch(base+'/data/index.json')).json()).map(x=>x.issueId),['2026-11-13','2026-11-06']);
     assert.deepEqual(await (await fetch(base+'/data/latest.json')).json(),latest);
     await writeFile(`${dist}/index.html`,'tampered'); await assert.rejects(verifyDist(dist),/digest\/inventory parity/);
