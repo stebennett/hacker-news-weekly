@@ -5,7 +5,7 @@ metadata_root, node (absolute pinned executable), npm (absolute executable),
 timeout (API operation), publish_timeout (<600 seconds), optional workspace_root,
 required_checks (default ["validate"]), cloudflare_app_id and poll_interval.
 Metadata is adaptLegacyReviewed metadata plus reviewedSha256, collectionSha256,
-selectedSha256. These three bindings are private and are not imported publicly.
+selectedSha256, taggingPath and taggingSha256. These bindings are private.
 Optional context.metadataSha256 binds exact metadata bytes; snapshots are read
 once and copied outside the checkout. Only revision 1 new issues are automated.
 """
@@ -15,7 +15,7 @@ import argparse
 import base64
 import json
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 import re
 import subprocess
 import sys
@@ -24,12 +24,14 @@ import time
 from urllib.parse import quote, urlencode
 
 from .github_api import GitHub, GitHubError, repository
-from .orchestrator import Issue, RuntimeError, digest, instant, secure_directory
+from .orchestrator import Issue, RuntimeError, atomic, digest, instant, secure_directory
 from .site_verify import parity
+from . import tagging
 
 SHA = re.compile(r'[0-9a-f]{40}')
-PUBLIC_METADATA = {'issueId', 'scheduledAt', 'collectedAt', 'revision', 'qualifyingCounts', 'itemSources'}
-BINDINGS = {'reviewedSha256', 'collectionSha256', 'selectedSha256'}
+PUBLIC_METADATA = {'issueId', 'scheduledAt', 'collectedAt', 'revision', 'qualifyingCounts', 'itemSources', 'ordinaryRankings'}
+BINDINGS = {'reviewedSha256', 'collectionSha256', 'selectedSha256', 'taggingSha256'}
+PRIVATE_METADATA = {'taggingPath'}
 
 
 def sha(value):
@@ -56,7 +58,7 @@ def snapshot(settings, context):
     if context.get('metadataSha256', digest(metadata_raw)) != digest(metadata_raw):
         raise RuntimeError('frozen metadata digest mismatch')
     metadata = json.loads(metadata_raw)
-    if set(metadata) - PUBLIC_METADATA - BINDINGS or not PUBLIC_METADATA <= set(metadata) or not BINDINGS <= set(metadata):
+    if set(metadata) != PUBLIC_METADATA | BINDINGS | PRIVATE_METADATA:
         raise RuntimeError('unknown or missing publication metadata fields')
     for field in BINDINGS:
         if not isinstance(metadata[field], str) or not re.fullmatch(r'[0-9a-f]{64}', metadata[field]):
@@ -67,18 +69,27 @@ def snapshot(settings, context):
             type(metadata['revision']) is not int or metadata['revision'] != context['revision'] or
             instant(metadata['scheduledAt']) != instant(issue.end)):
         raise RuntimeError('publication metadata differs from frozen review')
-    # Preserve only the strict public projection. Delivery context is never copied.
-    return raw, {key: metadata[key] for key in PUBLIC_METADATA}
+    if not isinstance(metadata['taggingPath'], str) or not Path(metadata['taggingPath']).is_absolute():
+        raise RuntimeError('tagging: absolute private sidecar path required')
+    tag_raw = tagging.read_private_bytes(metadata['taggingPath'])
+    if digest(tag_raw) != metadata['taggingSha256']:
+        raise RuntimeError('tagging: frozen sidecar digest mismatch')
+    selected_ids = {item['id'] for section in legacy['sections'] for item in section['items']}
+    tagging.validate_tagging(tag_raw, issue, digest(raw), selected_ids)
+    # Preserve only the strict importer projection. Private bindings, registry
+    # snapshot and delivery context never enter imported public issue JSON.
+    return raw, {key: metadata[key] for key in PUBLIC_METADATA}, tag_raw
 
 
-def allowed_paths(paths, issue):
+def allowed_paths(paths, issue, selected_ids=()):
     canonical = f'data/issues/{issue}.json'
     if canonical not in paths or not any(p.startswith('dist/') for p in paths):
         raise RuntimeError('content changes must include canonical issue and generated dist')
     for path in paths:
-        parts = PurePosixPath(path).parts
-        if ('\\' in path or any(p in ('.', '..') for p in parts) or path.startswith('/') or
-                not (path == canonical or path.startswith('dist/'))):
+        story = re.fullmatch(r'data/stories/([1-9][0-9]*)\.json', path)
+        if ('\\' in path or any(p in ('', '.', '..') for p in path.split('/')) or path.startswith('/') or
+                not (path == canonical or path.startswith('dist/') or path == 'data/tags.json' or
+                     story and story[1] in selected_ids)):
             raise RuntimeError('non-content changed path refused')
 
 
@@ -144,7 +155,9 @@ class Publisher:
             raise RuntimeError('explicit automatic_content_publication=true required')
         self.settings = dict(settings)
         self.context = {k: context[k] for k in ('issueId', 'revision', 'reviewedSha256', 'start', 'end', 'reviewed')}
-        self.reviewed, self.metadata = snapshot(settings, context)
+        self.reviewed, self.metadata, self.tagging = snapshot(settings, context)
+        self.tagging_sha256 = digest(self.tagging)
+        self.selected_ids = set(json.loads(self.tagging)['assignments'])
         duration = float(settings.get('publish_timeout', 540))
         if not 0 < duration < 600:
             raise RuntimeError('publication deadline must be below parent 600 seconds')
@@ -176,7 +189,7 @@ class Publisher:
         try:
             with tempfile.TemporaryFile() as stdout:
                 result = subprocess.run(argv, cwd=self.cwd, env=env, stdin=subprocess.DEVNULL,
-                                        stdout=stdout, stderr=subprocess.DEVNULL, timeout=self.remaining(limit))
+                                        stdout=stdout, stderr=subprocess.DEVNULL, timeout=self.remaining(limit), umask=0o022)
                 if result.returncode:
                     # Source/script output can contain private inputs. Do not forward it.
                     raise RuntimeError('publication subprocess failed: ' + Path(argv[0]).name)
@@ -215,7 +228,14 @@ class Publisher:
             if value != expected:
                 raise RuntimeError('canonical public metadata/content differs from frozen import')
 
+    def verify_tagging_copy(self, path):
+        if tagging.read_private_bytes(path) != self.tagging:
+            raise RuntimeError('frozen tagging copy differs from validated snapshot')
+
     def prepare(self, root):
+        root = secure_directory(root)
+        frozen_tagging = root / 'tagging.json'
+        atomic(frozen_tagging, self.tagging)
         self.cwd = root / 'checkout'
         self.cwd.mkdir()
         self.git('init', '--quiet')
@@ -248,18 +268,28 @@ class Publisher:
         expected = json.loads(generated.read_bytes())
         parity(expected, self.context)
         destination = self.cwd / f'data/issues/{self.issue}.json'
+        validate_tags = [node, 'scripts/verify-tag-changes.mjs', '--base', self.base,
+                         '--sidecar', str(frozen_tagging), '--issue', str(generated)]
         if destination.exists():
             if json.loads(destination.read_bytes()) != expected:
                 raise RuntimeError('existing issue immutable; changed content requires human correction')
+            # Read-only semantic compatibility with the complete existing archive;
+            # exact production tag artifact readback is a separate verification gate.
+            self.verify_tagging_copy(frozen_tagging)
+            self.run([*validate_tags, '--idempotent'])
             self.verify_issue(self.base, expected)
             return expected, True
         destination.write_bytes(generated.read_bytes())
+        destination.chmod(0o644)
+        self.verify_tagging_copy(frozen_tagging)
+        self.run([node, 'scripts/tagging.mjs', 'apply', '--sidecar', str(frozen_tagging),
+                  '--issue', str(generated), '--data-dir', str(self.cwd / 'data')])
         for command in ([npm, 'run', 'check'], [npm, 'test'], [npm, 'run', 'build'], [npm, 'run', 'verify:dist']):
             self.run(command, limit=180)
         # Stage everything, then inspect the COMPLETE index (including generated files).
         self.git('add', '-A')
         self.paths = self.git('diff', '--cached', '--name-only', '-z').decode().rstrip('\0').split('\0')
-        allowed_paths(self.paths, self.issue)
+        allowed_paths(self.paths, self.issue, self.selected_ids)
         statuses = self.git('diff', '--cached', '--name-status', '-z').decode().split('\0')
         if any(statuses[i] not in ('A', 'M') for i in range(0, len(statuses) - 1, 2)):
             raise RuntimeError('deletion/rename of retained content refused')
@@ -272,6 +302,12 @@ class Publisher:
                 if old and path != f'dist/data/issues/{self.issue}.json':
                     raise RuntimeError('historic issue/revision changed')
         self.blobs = {p: self.git('rev-parse', ':' + p).decode().strip() for p in self.paths}
+        # Validate the complete final archive AFTER lifecycle/build scripts;
+        # staged blobs must also match this exact validated worktree.
+        self.verify_tagging_copy(frozen_tagging)
+        self.run(validate_tags)
+        self.verify_tagging_copy(frozen_tagging)
+        self.git('diff', '--exit-code', '--')
         self.git('-c', 'user.name=TWIHN publisher', '-c', 'user.email=publisher@users.noreply.github.com',
                  '-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '-m', f'content: weekly issue {self.issue}')
         self.head = sha(self.git('rev-parse', 'HEAD').decode().strip())
@@ -288,7 +324,7 @@ class Publisher:
         if pr.get('changed_files') != len(files) or len(files) != len(self.paths):
             raise RuntimeError('incomplete PR changed-file readback')
         actual = {f['filename']: f['sha'] for f in files}
-        allowed_paths(actual, self.issue)
+        allowed_paths(actual, self.issue, self.selected_ids)
         if actual != self.blobs or any(f['status'] not in ('added', 'modified') or 'previous_filename' in f for f in files):
             raise RuntimeError('server PR differs from validated complete content file set')
         commit = self.api('GET', '/git/commits/' + self.head)
@@ -343,7 +379,7 @@ class Publisher:
                 return {'commit': self.base}
             # Deterministic digest + exact base allows crash recovery without adopting
             # unrelated/source branches. Existing branch must have identical tree/parent.
-            self.branch = f'content/weekly-{self.issue}-{self.context["reviewedSha256"][:20]}-{self.base[:12]}'
+            self.branch = f'content/weekly-{self.issue}-{self.context["reviewedSha256"][:20]}-{self.tagging_sha256[:20]}-{self.base[:12]}'
             refs = self.git('ls-remote', '--heads', 'origin', 'refs/heads/' + self.branch).decode().strip()
             if refs:
                 remote = sha(refs.split()[0])

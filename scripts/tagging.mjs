@@ -104,7 +104,7 @@ export async function readPrivateJSONBytes(filename) {
     return buffer.subarray(0,offset);
   } finally { await handle.close(); }
 }
-async function checkDataTree(dataDir, publicApplication = false) {
+export async function checkDataTree(dataDir, publicApplication = false) {
   await noSymlinks(dataDir, true);
   let total = 0;
   const snapshot = [];
@@ -173,7 +173,7 @@ export async function writeCandidate(filename, value, forbiddenDirs = []) {
   finally { await handle.close(); }
 }
 
-async function readFrozenSidecar(filename, dataDir) {
+export async function readFrozenSidecar(filename, dataDir) {
   const absolute = path.resolve(filename);
   requireThat(![repository,dataDir].some(dir => within(absolute,dir)), 'Sidecar must be outside repository and public archive');
   await noSymlinks(absolute);

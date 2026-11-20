@@ -3,6 +3,7 @@ import copy
 import hashlib
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -14,6 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from runtime import publisher as pub
 from runtime.orchestrator import Issue, RuntimeError, digest
 from test_runtime import reviewed
+from test_tagging import candidate_bytes
+from runtime import tagging
 
 BASE, HEAD, MERGED = 'a' * 40, 'b' * 40, 'c' * 40
 
@@ -29,12 +32,17 @@ class PublisherTests(unittest.TestCase):
                             reviewed=str(path), reviewedSha256=digest(path.read_bytes()),
                             sender='PRIVATE-SENDER', recipient='PRIVATE-RECIPIENT', email='PRIVATE-EMAIL')
         self.metadata = dict(issueId=issue.issue_id, revision=1, scheduledAt=issue.end, collectedAt=issue.end,
-                             qualifyingCounts=[10, 10, 10, 0], itemSources={},
+                             qualifyingCounts=[20, 20, 10, 0], itemSources={},
+                             ordinaryRankings=dict(score=[str(n) for n in range(1, 21)], comments=[str(n) for n in range(11, 21)]),
                              reviewedSha256=self.context['reviewedSha256'], collectionSha256='d' * 64, selectedSha256='e' * 64)
+        self.tagfile = self.root / 'tagging.json'
+        self.tagraw = candidate_bytes(path.read_bytes(), issue.issue_id)
+        self.tagfile.write_bytes(self.tagraw); self.tagfile.chmod(0o600)
+        self.metadata.update(taggingPath=str(self.tagfile), taggingSha256=digest(self.tagraw))
         self.public = dict(schemaVersion=1, issueId=issue.issue_id, revision=1, scheduledAt=issue.end,
                            collectedAt=issue.end, displayTimezone='Europe/London', window=dict(start=issue.start, end=issue.end), sections=[], items={})
         for group, section in zip(self.legacy['sections'], ['votes', 'comments', 'ask', 'show']):
-            self.public['sections'].append(dict(id=section, itemIds=[x['id'] for x in group['items']], qualifyingCount=len(group['items'])))
+            self.public['sections'].append(dict(id=section, itemIds=[x['id'] for x in group['items']], qualifyingCount=20 if section in ('votes', 'comments') else len(group['items'])))
             for x in group['items']:
                 provenance = dict(sources=[dict(kind='story', url=x['url']), dict(kind='discussion', url='https://news.ycombinator.com/item?id=' + x['id'])],
                                   availability=dict(story=dict(status='reviewed', note='Reviewed.'), discussion=dict(status='reviewed', note='Reviewed.')))
@@ -306,6 +314,64 @@ class PublisherTests(unittest.TestCase):
         with self.assertRaises(RuntimeError): pub.snapshot(self.settings, context)
         self.assertEqual(set(pub.snapshot(self.settings, self.context)[1]), pub.PUBLIC_METADATA)
 
+    def test_sidecar_snapshot_exact_digest_and_private_projection(self):
+        with patch.object(tagging, 'read_private_bytes', wraps=tagging.read_private_bytes) as read:
+            p = pub.Publisher(self.settings, self.context)
+        read.assert_called_once_with(str(self.tagfile))
+        self.assertEqual(p.tagging, self.tagraw)
+        self.assertNotIn('taggingPath', p.metadata)
+        self.assertNotIn('taggingSha256', p.metadata)
+        self.assertNotIn('registry', p.metadata)
+        self.assertEqual(p.tagging_sha256, digest(self.tagraw))
+
+    def test_sidecar_changes_during_snapshot_do_not_replace_validated_bytes(self):
+        read = tagging.read_private_bytes
+        def racing_read(path):
+            raw = read(path)
+            Path(path).write_text('{}')
+            return raw
+        with patch.object(tagging, 'read_private_bytes', side_effect=racing_read) as snapshot:
+            p = pub.Publisher(self.settings, self.context)
+        snapshot.assert_called_once_with(str(self.tagfile))
+        self.assertEqual(p.tagging, self.tagraw)
+
+    def test_sidecar_invalid_binding_shape_or_digest_stops_before_github(self):
+        for mutate in [lambda v: v.update(reviewedSha256='0'*64),
+                       lambda v: v.update(issueId='2026-11-20'),
+                       lambda v: v.update(registrySha256='0'*64),
+                       lambda v: v['assignments'].pop('1'),
+                       lambda v: v.update(private='PRIVATE')]:
+            with self.subTest(mutate=mutate):
+                value = json.loads(self.tagraw); mutate(value)
+                raw = json.dumps(value).encode(); self.tagfile.write_bytes(raw)
+                self.metadata['taggingSha256'] = digest(raw); self.save_metadata()
+                self.github_type.reset_mock()
+                with self.assertRaisesRegex(RuntimeError, 'tagging'):
+                    pub.Publisher(self.settings, self.context)
+                self.github_type.assert_not_called()
+        self.tagfile.write_bytes(self.tagraw + b' ')
+        self.metadata['taggingSha256'] = digest(self.tagraw); self.save_metadata()
+        with self.assertRaisesRegex(RuntimeError, 'tagging.*digest'):
+            pub.Publisher(self.settings, self.context)
+
+    def test_tagging_digest_changes_deterministic_recovery_branch(self):
+        self.publish(); first = self.publisher.branch
+        self.publisher.tagging_sha256 = digest(self.tagraw + b' ')
+        self.merged = False; self.calls = []
+        self.publish()
+        self.assertNotEqual(self.publisher.branch, first)
+
+    def test_only_literal_story_paths_justified_by_review_are_allowed(self):
+        ids = set(self.public['items'])
+        valid = self.paths + ['data/tags.json', 'data/stories/1.json']
+        pub.allowed_paths(valid, self.context['issueId'], ids)
+        # Registry and story diffs are optional when no actual content changes.
+        pub.allowed_paths(self.paths, self.context['issueId'], ids)
+        for path in ['data/stories/99.json', 'data/stories/01.json', 'data/stories/1.json\n',
+                     'data/stories/../1.json', 'data/issues/2026-11-06.json', 'data/private.json']:
+            with self.subTest(path=path), self.assertRaisesRegex(RuntimeError, 'non-content'):
+                pub.allowed_paths(self.paths + [path], self.context['issueId'], ids)
+
     def test_tampered_review_and_invalid_weekly_context_rejected(self):
         Path(self.context['reviewed']).write_text('{}')
         with self.assertRaises(RuntimeError): pub.snapshot(self.settings, self.context)
@@ -338,6 +404,7 @@ class PublisherTests(unittest.TestCase):
             self.assertNotIn('PRIVATE', str(caught.exception))
             self.assertNotIn('GITHUB_APP_PRIVATE_KEY', run.call_args.kwargs['env'])
             self.assertGreater(run.call_args.kwargs['timeout'], 0)
+            self.assertEqual(run.call_args.kwargs['umask'], 0o022)
         self.publisher.deadline = time.monotonic() - 1
         with self.assertRaises(RuntimeError): self.publisher.remaining()
 
@@ -349,11 +416,13 @@ class PublisherTests(unittest.TestCase):
         self.github_type.assert_called_with(self.settings, write=True)
         self.assertTrue(all(call.args[0] == 'GET' for call in self.github.request.call_args_list))
 
-    def prepared_fixture(self, existing=None, extra_source=False, moved=False):
+    def prepared_fixture(self, existing=None, extra_source=False, moved=False, validator_error=False, mutate_sidecar=False, tamper_frozen=False):
         p = self.publisher
         node, npm = self.root / 'node', self.root / 'npm'
         node.touch(); npm.touch()
         p.settings.update(node=str(node), npm=str(npm))
+        if mutate_sidecar:
+            self.tagfile.write_text('{}')
         commands = []
         def git(*args):
             commands.append(('git', args))
@@ -373,9 +442,20 @@ class PublisherTests(unittest.TestCase):
             return b''
         def run(argv, **kwargs):
             commands.append(('run', argv))
+            if tamper_frozen and argv[1:] == ['run', 'build']:
+                (p.cwd.parent / 'tagging.json').write_bytes(self.tagraw + b' ')
             if argv == [str(node), '--version']: return b'v22.23.4\n'
             if argv == [str(npm), '--version']: return b'12.0.2\n'
             if 'scripts/import-legacy.mjs' in argv: Path(argv[-1]).write_text(json.dumps(self.public))
+            if 'scripts/tagging.mjs' in argv or 'scripts/verify-tag-changes.mjs' in argv:
+                frozen = Path(argv[argv.index('--sidecar') + 1])
+                self.assertEqual(frozen.read_bytes(), self.tagraw)
+                self.assertNotEqual(frozen, self.tagfile)
+                self.assertFalse(frozen.is_relative_to(p.cwd))
+                self.assertEqual(frozen.stat().st_mode & 0o777, 0o600)
+                self.assertEqual(frozen.parent.stat().st_mode & 0o777, 0o700)
+            if 'scripts/verify-tag-changes.mjs' in argv and validator_error:
+                raise RuntimeError('semantic tag diff refused')
             return b''
         buildroot = self.root / 'isolated'; buildroot.mkdir()
         with patch.object(p, 'git', side_effect=git), patch.object(p, 'run', side_effect=run), patch.object(p, 'current', return_value=BASE), patch.object(p, 'verify_issue') as verify:
@@ -389,12 +469,109 @@ class PublisherTests(unittest.TestCase):
         npm_commands = [args[1:] for kind, args in commands if kind == 'run' and Path(args[0]).name == 'npm']
         self.assertEqual(npm_commands, [['--version'], ['ci', '--no-audit', '--no-fund'], ['run', 'check'], ['test'], ['run', 'build'], ['run', 'verify:dist']])
         self.assertTrue(any(kind == 'run' and 'scripts/import-legacy.mjs' in args for kind, args in commands))
+        applied = [args for kind, args in commands if kind == 'run' and 'scripts/tagging.mjs' in args]
+        validated = [args for kind, args in commands if kind == 'run' and 'scripts/verify-tag-changes.mjs' in args]
+        self.assertEqual(len(applied), 1); self.assertIn('apply', applied[0])
+        self.assertGreaterEqual(len(validated), 1)
+        self.assertTrue(all(args[args.index('--base') + 1] == BASE for args in validated))
+        last_validator = max(i for i, (kind, args) in enumerate(commands) if kind == 'run' and 'scripts/verify-tag-changes.mjs' in args)
+        commit = next(i for i, (kind, args) in enumerate(commands) if kind == 'git' and 'commit' in args)
+        self.assertLess(last_validator, commit)
+        build = next(i for i, (kind, args) in enumerate(commands) if kind == 'run' and args[1:] == ['run', 'build'])
+        self.assertTrue(all(i > build for i, (kind, args) in enumerate(commands) if kind == 'run' and 'scripts/verify-tag-changes.mjs' in args))
+
+    def test_prepare_uses_constructor_snapshot_not_mutable_original_sidecar(self):
+        (_, exists), commands, _ = self.prepared_fixture(mutate_sidecar=True)
+        self.assertFalse(exists)
+        self.assertTrue(any(kind == 'run' and 'scripts/tagging.mjs' in args for kind, args in commands))
+
+    def test_prepare_semantic_diff_failure_stops_before_commit_or_push(self):
+        with self.assertRaisesRegex(RuntimeError, 'semantic tag diff'):
+            self.prepared_fixture(validator_error=True)
+
+    def test_prepare_rechecks_exact_frozen_copy_after_lifecycle_scripts(self):
+        with self.assertRaisesRegex(RuntimeError, 'frozen tagging'):
+            self.prepared_fixture(tamper_frozen=True)
+
+    def test_server_readback_checks_complete_registry_and_story_blob_set(self):
+        self.paths += ['data/tags.json', 'data/stories/1.json']
+        self.blobs.update({'data/tags.json':'d'*40, 'data/stories/1.json':'e'*40})
+        result, _ = self.publish()
+        self.assertEqual(result['commit'], MERGED)
+        self.merged = False; self.bad = 'blob'; self.calls = []
+        with self.assertRaisesRegex(RuntimeError, 'complete content file set'):
+            self.publish()
+        self.assertFalse(any(method == 'PUT' for method, _, _ in self.calls))
+
+    def test_existing_issue_still_requires_frozen_tag_compatibility(self):
+        with self.assertRaisesRegex(RuntimeError, 'semantic tag diff'):
+            self.prepared_fixture(existing=self.public, validator_error=True)
+
+    def test_real_local_import_apply_and_diff_pipeline_uses_frozen_private_sidecar(self):
+        source = Path(__file__).resolve().parents[2]
+        origin = self.root / 'local-origin'; origin.mkdir()
+        for name in ['scripts', 'schema']:
+            shutil.copytree(source / name, origin / name)
+        for name in ['package.json', '.node-version']:
+            shutil.copyfile(source / name, origin / name)
+        (origin / '.gitignore').write_text('node_modules\n')
+        (origin / 'node_modules').symlink_to(source / 'node_modules', target_is_directory=True)
+        for name in ['issues', 'revisions', 'stories']:
+            (origin / 'data' / name).mkdir(parents=True)
+        old = copy.deepcopy(self.public)
+        issue = Issue.resolve('2026-11-06')
+        old.update(issueId=issue.issue_id, scheduledAt=issue.end, collectedAt=issue.end,
+                   window=dict(start=issue.start, end=issue.end))
+        for item in old['items'].values(): item['submittedAt'] = issue.start
+        (origin / 'data/issues' / (issue.issue_id + '.json')).write_text(json.dumps(old))
+        registry = dict(schemaVersion=1, tags=[dict(slug='ai', label='AI'), dict(slug='security', label='Security')])
+        (origin / 'data/tags.json').write_text(json.dumps(registry))
+        for ident in old['items']:
+            (origin / 'data/stories' / (ident + '.json')).write_text(json.dumps(dict(schemaVersion=1,
+                id=ident, tagSlugs=['ai', 'security'], issueIds=[issue.issue_id])))
+        (origin / 'data/revisions/.gitkeep').touch()
+        def git_at(root, *args):
+            return subprocess.check_output(['git', *args], cwd=root, stderr=subprocess.DEVNULL, timeout=15)
+        git_at(origin, 'init', '--quiet', '--initial-branch=main'); git_at(origin, 'add', '-A')
+        git_at(origin, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '--quiet', '-m', 'base')
+        base = git_at(origin, 'rev-parse', 'HEAD').decode().strip()
+        p = self.publisher
+        p.settings.update(node=shutil.which('node'), npm=shutil.which('npm'))
+        original_run, original_git = p.run, p.git
+        def local_git(*args):
+            if args[:3] == ('remote', 'add', 'origin'):
+                return original_git('remote', 'add', 'origin', str(origin))
+            result = original_git(*args)
+            if args[0] == 'checkout':
+                (p.cwd / 'node_modules').symlink_to(source / 'node_modules', target_is_directory=True)
+            return result
+        def run(argv, **kwargs):
+            if argv[0] == p.settings['npm'] and argv[1:] != ['--version']:
+                if argv[1:] == ['run', 'build']:
+                    (p.cwd / 'dist').mkdir()
+                    (p.cwd / 'dist/index.html').write_text('offline generated fixture')
+                return b''
+            return original_run(argv, **kwargs)
+        self.tagfile.write_text('{}') # Cannot influence the constructor snapshot.
+        buildroot = self.root / 'real-isolated'; buildroot.mkdir()
+        with patch.object(p, 'git', side_effect=local_git), patch.object(p, 'run', side_effect=run), \
+             patch.object(p, 'current', return_value=base), patch.object(p, 'verify_issue'):
+            expected, exists = p.prepare(buildroot)
+        self.assertFalse(exists); self.assertEqual(expected, self.public)
+        self.assertNotIn('data/tags.json', p.paths, 'known labels need no registry diff')
+        self.assertIn('data/stories/1.json', p.paths)
+        self.assertEqual((buildroot / 'tagging.json').read_bytes(), self.tagraw)
+        self.assertEqual(json.loads((p.cwd / 'data/stories/1.json').read_bytes())['issueIds'], ['2026-11-06', '2026-11-13'])
+        self.assertEqual((p.cwd / 'data/issues/2026-11-06.json').read_bytes(), (origin / 'data/issues/2026-11-06.json').read_bytes())
 
     def test_prepare_existing_same_issue_does_not_build_commit_or_overwrite(self):
         (_, exists), commands, verify = self.prepared_fixture(existing=self.public)
         self.assertTrue(exists); verify.assert_called_once_with(BASE, self.public)
         self.assertFalse(any(kind == 'git' and 'commit' in args for kind, args in commands))
         self.assertFalse(any(kind == 'run' and 'build' in args for kind, args in commands))
+        validators = [args for kind, args in commands if kind == 'run' and 'scripts/verify-tag-changes.mjs' in args]
+        self.assertEqual(len(validators), 1)
+        self.assertIn('--idempotent', validators[0])
 
     def test_prepare_changed_existing_issue_is_immutable(self):
         changed = copy.deepcopy(self.public); changed['items']['1']['story'] = 'Unreviewed edit.'
