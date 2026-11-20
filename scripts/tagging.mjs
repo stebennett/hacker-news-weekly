@@ -1,11 +1,12 @@
 import { constants } from 'node:fs';
-import { open, lstat, readdir } from 'node:fs/promises';
+import { open, lstat, readdir, rename, link, unlink } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TextDecoder } from 'node:util';
-import { HEADINGS, stableJSON, loadArchive } from './content.mjs';
+import { HEADINGS, stableJSON, loadArchive, validateIssue } from './content.mjs';
 import { loadStoryArchive, validateRegistry, validateStoryRecord, validateTagging,
-  validateTaggingInput, validateTaggingIssueId, sha256, registrySha256 } from './tags.mjs';
+  validateTaggingInput, validateTaggingIssueId, sha256, registrySha256, projectStories, applyTagging } from './tags.mjs';
 
 // Bounded local JSON only; this module never calls a model or the network.
 export const maxCandidateBytes = 16 * 1024 * 1024;
@@ -103,22 +104,38 @@ export async function readPrivateJSONBytes(filename) {
     return buffer.subarray(0,offset);
   } finally { await handle.close(); }
 }
-async function checkDataTree(dataDir) {
+async function checkDataTree(dataDir, publicApplication = false) {
   await noSymlinks(dataDir, true);
   let total = 0;
+  const snapshot = [];
   async function visit(dir) {
-    for (const entry of await readdir(dir, {withFileTypes:true})) {
+    const directory = await lstat(dir);
+    if (publicApplication) {
+      requireThat(directory.uid === process.getuid() && (directory.mode & 0o022) === 0, 'Public archive directories must be owned and not group/world writable');
+      snapshot.push([dir,directory.ino,directory.mode,directory.mtimeMs,directory.ctimeMs]);
+    }
+    for (const entry of (await readdir(dir, {withFileTypes:true})).sort((a,b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
       const filename = path.join(dir,entry.name), info = await lstat(filename);
       requireThat(!info.isSymbolicLink(), 'Symlink archive path is not allowed');
+      if (publicApplication && dir === dataDir) {
+        requireThat(['issues','revisions','stories','tags.json'].includes(entry.name), 'Unexpected public archive root entry');
+        requireThat(entry.name === 'tags.json' ? info.isFile() : info.isDirectory(), 'Invalid public archive root entry type');
+      }
+      if (publicApplication && entry.name === '.gitkeep') requireThat(info.isFile(), 'Archive placeholder must be a regular file');
       if (info.isDirectory()) await visit(filename);
       else {
         requireThat(info.isFile() && info.size <= maxCandidateBytes, 'Archive file exceeds size limit or is not regular');
+        if (publicApplication) {
+          requireThat(info.uid === process.getuid() && (info.mode & 0o7777) === 0o644 && info.nlink === 1, 'Public archive files must be owned regular unaliased mode 0644');
+          snapshot.push([filename,info.ino,info.mode,info.nlink,info.size,info.mtimeMs,info.ctimeMs]);
+        }
         total += info.size;
         requireThat(total <= maxArchiveBytes, 'Archive exceeds byte limit');
       }
     }
   }
   await visit(dataDir);
+  return {entries:snapshot,totalBytes:total};
 }
 async function exists(filename) {
   try { await lstat(filename); return true; } catch (error) { if (error.code === 'ENOENT') return false; throw error; }
@@ -156,10 +173,102 @@ export async function writeCandidate(filename, value, forbiddenDirs = []) {
   finally { await handle.close(); }
 }
 
+async function readFrozenSidecar(filename, dataDir) {
+  const absolute = path.resolve(filename);
+  requireThat(![repository,dataDir].some(dir => within(absolute,dir)), 'Sidecar must be outside repository and public archive');
+  await noSymlinks(absolute);
+  const parent = await lstat(path.dirname(absolute)), info = await lstat(absolute);
+  requireThat(parent.uid === process.getuid() && (parent.mode & 0o077) === 0 && info.uid === process.getuid() && (info.mode & 0o7777) === 0o600 && info.nlink === 1, 'Frozen sidecar must be private and owned (0700/0600)');
+  return parseJSON(await readPrivateJSONBytes(absolute));
+}
+
+async function loadApplicationArchive(dataDir, newIssue) {
+  const {issues,revisions} = await loadArchive(dataDir);
+  const imported = issues.find(issue => issue.issueId === newIssue.issueId);
+  requireThat(imported && stableJSON(imported) === stableJSON(newIssue), 'Apply requires the exact already-imported current issue');
+  const registry = validateRegistry(parseJSON(await readPrivateJSONBytes(path.join(dataDir,'tags.json'))));
+  const records = [], storiesDir = await noSymlinks(path.join(dataDir,'stories'),true);
+  for (const entry of await readdir(storiesDir,{withFileTypes:true})) {
+    requireThat(entry.isFile() && /^[1-9][0-9]*\.json(?![\s\S])/u.test(entry.name), 'Unexpected application story path');
+    const record = validateStoryRecord(parseJSON(await readPrivateJSONBytes(path.join(storiesDir,entry.name))),registry);
+    requireThat(entry.name === `${record.id}.json`, 'Application story filename/ID mismatch');
+    records.push(record);
+  }
+  // Only this CLI boundary can exclude the exact pending imported issue. A
+  // partial prior write fails BOTH projections and is never silently repaired.
+  let baseIssues = issues;
+  try { projectStories(issues,records,registry); }
+  catch {
+    baseIssues = issues.filter(issue => issue.issueId !== newIssue.issueId);
+    projectStories(baseIssues,records,registry);
+  }
+  return {issues:baseIssues,revisions,registry,records};
+}
+
+async function atomicPublicJSON(filename, bytes, previous) {
+  const parent = await noSymlinks(path.dirname(filename),true);
+  const temporary = path.join(parent,`.tagging-${randomUUID()}.tmp`);
+  try {
+    const handle = await open(temporary,constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,0o644);
+    try { await handle.chmod(0o644); await handle.writeFile(bytes); await handle.sync(); }
+    finally { await handle.close(); }
+    await noSymlinks(parent,true);
+    if (previous === null) {
+      // Atomic create-if-absent, not rename-overwrite of a concurrent new record.
+      await link(temporary,filename); await unlink(temporary);
+    } else {
+      requireThat((await readPrivateJSONBytes(filename)).equals(previous), 'Public target changed during application');
+      await rename(temporary,filename);
+    }
+    const directory = await open(parent,constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+    try { await directory.sync(); } finally { await directory.close(); }
+  } finally {
+    await unlink(temporary).catch(error => { if (error.code !== 'ENOENT') throw error; });
+  }
+}
+
+async function applyFrozenTagging(sidecarPath, issuePath, directory) {
+  const dataDir = await noSymlinks(directory,true);
+  const frozen = await readFrozenSidecar(sidecarPath,dataDir);
+  const before = await checkDataTree(dataDir,true);
+  const issue = validateIssue(parseJSON(await readPrivateJSONBytes(issuePath)));
+  const archive = await loadApplicationArchive(dataDir,issue);
+  const next = applyTagging(archive,frozen,issue);
+  // The entire next projection is valid before even staging a write. Preserve
+  // untouched historical bytes (including noncanonical whitespace), not merely
+  // their JSON meaning. Only changed registry/records receive canonical bytes.
+  const previousRecords = new Map(archive.records.map(record => [record.id,record]));
+  const changes = [];
+  for (const record of next.records) {
+    const previous = previousRecords.get(record.id);
+    if (previous && stableJSON(previous) === stableJSON(record)) continue;
+    const filename = path.join(dataDir,'stories',`${record.id}.json`);
+    changes.push({filename,bytes:stableJSON(record),previous:previous ? await readPrivateJSONBytes(filename) : null});
+  }
+  if (stableJSON(archive.registry) !== stableJSON(next.registry)) {
+    const filename = path.join(dataDir,'tags.json');
+    changes.push({filename,bytes:stableJSON(next.registry),previous:await readPrivateJSONBytes(filename)});
+  }
+  let nextBytes = before.totalBytes;
+  for (const change of changes) {
+    const size = Buffer.byteLength(change.bytes);
+    requireThat(size <= maxCandidateBytes, 'Computed public JSON exceeds byte limit');
+    nextBytes += size - (change.previous?.length ?? 0);
+  }
+  requireThat(nextBytes <= maxArchiveBytes, 'Computed public archive exceeds byte limit');
+  requireThat(stableJSON(before) === stableJSON(await checkDataTree(dataDir,true)), 'Archive changed during application preflight');
+  // This is intentionally not a multi-file transaction. The caller owns its
+  // checkout; interrupted writes leave an invalid projection or crash temporary
+  // file that a retry refuses, not an apparently successful partial migration.
+  for (const change of changes) await atomicPublicJSON(change.filename,change.bytes,change.previous);
+  await checkDataTree(dataDir,true);
+  await loadStoryArchive(dataDir);
+}
+
 function argumentsFor(argv) {
   const [command,...rest] = argv;
-  const allowed = command === 'input' ? ['--archive','--reviewed','--data-dir','--issue','--output'] : command === 'validate' ? ['--data-dir','--input','--response','--output'] : [];
-  requireThat(allowed.length > 0, 'Usage: node scripts/tagging.mjs input|validate [options]');
+  const allowed = command === 'input' ? ['--archive','--reviewed','--data-dir','--issue','--output'] : command === 'validate' ? ['--data-dir','--input','--response','--output'] : command === 'apply' ? ['--sidecar','--issue','--data-dir'] : [];
+  requireThat(allowed.length > 0, 'Usage: node scripts/tagging.mjs input|validate|apply [options]');
   const options = {};
   for (let n = 0; n < rest.length; n++) {
     const key = rest[n];
@@ -170,7 +279,7 @@ function argumentsFor(argv) {
       options[key] = rest[++n];
     }
   }
-  const required = command === 'input' ? ['--data-dir','--issue','--output'] : ['--data-dir','--input','--response','--output'];
+  const required = command === 'input' ? ['--data-dir','--issue','--output'] : command === 'validate' ? ['--data-dir','--input','--response','--output'] : ['--sidecar','--issue','--data-dir'];
   requireThat(required.every(key => options[key]), 'Missing required tagging arguments');
   if (command === 'input') requireThat(Boolean(options['--archive']) !== Boolean(options['--reviewed']), 'Use exactly one of --reviewed or --archive');
   return {command,options};
@@ -183,6 +292,8 @@ export async function main(argv = process.argv.slice(2)) {
     const archive = o['--archive'] ? await loadMigrationArchive(o['--data-dir']) : await loadStoryArchive(o['--data-dir']);
     const input = o['--archive'] ? prepareArchiveTaggingInput(archive,o['--issue']) : prepareTaggingInput(await readPrivateJSONBytes(o['--reviewed']),archive,o['--issue']);
     await writeCandidate(o['--output'],input,[o['--data-dir']]);
+  } else if (command === 'apply') {
+    await applyFrozenTagging(o['--sidecar'],o['--issue'],o['--data-dir']);
   } else {
     const dataDir = await noSymlinks(o['--data-dir'],true);
     const input = parseJSON(await readPrivateJSONBytes(o['--input']));
@@ -195,7 +306,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     // Do not echo parser, schema, path or model diagnostics: they may include
     // private input bytes. Detailed semantic errors remain available to callers.
     const limit = /limit|exceeds/iu.test(error.message) ? ' (byte limit)' : '';
-    console.error(`Tagging failed${limit}; no valid candidate was prepared.`);
+    console.error(process.argv[2] === 'apply'
+      ? `Tagging application failed${limit}; inspect or restore the checkout before retrying.`
+      : `Tagging failed${limit}; no valid candidate was prepared.`);
     process.exitCode = 1;
   });
 }

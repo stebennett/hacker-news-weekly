@@ -175,6 +175,59 @@ export function validateTagging(input, response) {
     registry:structuredClone(input.registry),assignments,additions};
 }
 
+// Validate a frozen result independently of the model input. Review bytes are
+// verified by the private runtime; this public layer verifies carried bindings,
+// the complete registry snapshot, and exact current-issue assignment coverage.
+function validateFrozenTagging(frozen, issue) {
+  exactKeys(frozen, ['schemaVersion','issueId','reviewedSha256','registrySha256','registry','assignments','additions'], 'frozen tagging');
+  requireThat(frozen.schemaVersion === 1 && frozen.issueId === issue.issueId, 'frozen tagging issue/version mismatch');
+  validateTaggingIssueId(frozen.issueId);
+  const digest = value => typeof value === 'string' && /^[a-f0-9]{64}(?![\s\S])/u.test(value);
+  requireThat(digest(frozen.reviewedSha256) && digest(frozen.registrySha256), 'Invalid frozen tagging SHA-256 binding');
+  requireThat(frozen.registrySha256 === registrySha256(frozen.registry), 'frozen registry digest mismatch');
+  validateRegistry({schemaVersion:1,tags:frozen.additions});
+  const registry = validateRegistry({schemaVersion:1,tags:[...frozen.registry.tags,...frozen.additions].sort((a,b) => a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0)});
+  const ids = Object.keys(issue.items);
+  requireThat(isObject(frozen.assignments) && Object.keys(frozen.assignments).length === ids.length && ids.length > 0 && ids.every(id => Object.hasOwn(frozen.assignments,id)), 'frozen assignments must cover exact current issue IDs');
+  const used = new Set();
+  for (const id of ids) {
+    validateStoryRecord({schemaVersion:1,id,tagSlugs:frozen.assignments[id],issueIds:[issue.issueId]},registry);
+    for (const slug of frozen.assignments[id]) used.add(slug);
+  }
+  requireThat(frozen.additions.every(tag => used.has(tag.slug)), 'unused frozen registry addition');
+}
+
+export function applyTagging(archive, frozen, newIssue) {
+  validateIssue(newIssue);
+  requireThat(newIssue.revision === 1, 'weekly tagging cannot apply a historical correction');
+  validateFrozenTagging(frozen,newIssue);
+  validateRegistry(archive.registry);
+  const current = new Map(archive.registry.tags.map(tag => [tag.slug,tag]));
+  // Compare ALL frozen mappings, including tags not assigned in this issue.
+  for (const tag of frozen.registry.tags) requireThat(current.get(tag.slug)?.label === tag.label, 'frozen registry mapping removed or changed');
+  const labels = new Map(archive.registry.tags.map(tag => [normalizeLabel(tag.label),tag.slug]));
+  for (const tag of frozen.additions) {
+    requireThat(!current.has(tag.slug) || current.get(tag.slug).label === tag.label, 'frozen addition slug conflicts with current registry');
+    requireThat(!labels.has(normalizeLabel(tag.label)) || labels.get(normalizeLabel(tag.label)) === tag.slug, 'frozen addition label moved to another slug');
+    current.set(tag.slug,tag);
+  }
+  // A caller must supply a complete base or a complete already-applied archive,
+  // never relax historical coverage to accommodate an imported untagged issue.
+  projectStories(archive.issues,archive.records,archive.registry);
+  const matching = archive.issues.filter(issue => issue.issueId === newIssue.issueId);
+  requireThat(!matching.length || stableJSON(matching[0]) === stableJSON(newIssue), 'cannot replace an existing issue during tagging');
+  const registry = structuredClone({schemaVersion:1,tags:[...current.values()].sort((a,b) => a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0)});
+  const records = new Map(archive.records.map(record => [record.id,structuredClone(record)]));
+  for (const id of Object.keys(newIssue.items)) {
+    const existing = records.get(id), assigned = frozen.assignments[id];
+    requireThat(!existing || stableJSON(existing.tagSlugs) === stableJSON(assigned), 'existing story assignments cannot change');
+    records.set(id,{schemaVersion:1,id,tagSlugs:[...assigned],issueIds:[...new Set([...(existing?.issueIds ?? []),newIssue.issueId])].sort()});
+  }
+  const nextRecords = [...records.values()].sort((a,b) => BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0);
+  projectStories(matching.length ? archive.issues : [...archive.issues,newIssue],nextRecords,registry);
+  return {registry,records:nextRecords};
+}
+
 export const pageSize = 20;
 
 const newestFirst = (a, b) => {

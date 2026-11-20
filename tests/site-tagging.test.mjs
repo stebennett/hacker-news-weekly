@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, writeFile, readFile, stat, symlink, rm, chmod } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, stat, lstat, readdir, readlink, symlink, rm, chmod, link } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -321,6 +321,269 @@ test('archive migration never treats malformed registry or records as absent', a
 test('review hash is a carried binding, not a claim that validation re-read trusted review bytes', () => {
   const i = input(); i.reviewedSha256 = sha('a different real byte sequence');
   assert.equal(validate(i,response()).reviewedSha256,i.reviewedSha256);
+});
+
+function applicationFixture() {
+  const archive = taggedFixture(), issue = structuredClone(archive.issues[0]);
+  issue.issueId = '2026-11-20'; issue.scheduledAt = '2026-11-20T08:00:00Z'; issue.collectedAt = '2026-11-20T08:05:00Z';
+  issue.window = {start:'2026-11-13T08:00:00Z',end:issue.scheduledAt};
+  // Both snapshots remain independently valid. An existing ID's reviewed facts
+  // still come from issues, never from its independent tagging record.
+  issue.items = Object.fromEntries(Object.values(issue.items).map(item => {
+    const id = item.id === '2' ? '3' : item.id;
+    return [id,{...item,id,title:`New reviewed ${id}`,submittedAt:'2026-11-17T12:00:00Z',discussionUrl:`https://news.ycombinator.com/item?id=${id}`,sources:[{kind:'discussion',url:`https://news.ycombinator.com/item?id=${id}`}]}];
+  }));
+  issue.sections = issue.sections.map(section => ({...section,itemIds:section.itemIds.map(id => id === '2' ? '3' : id)}));
+  const i = {...input(archive.registry),issueId:issue.issueId,stories:[
+    {...input().stories[0],existingTagSlugs:['ai']},{...input().stories[1],id:'3'}]};
+  const frozen = validate(i,{assignments:{'1':['AI'],'3':['Security']}});
+  return {archive,issue,frozen};
+}
+const apply = (archive, frozen, issue) => {
+  assert.equal(typeof tags.applyTagging,'function');
+  return tags.applyTagging(archive,frozen,issue);
+};
+
+test('apply appends genuine topics and exactly current records/references without mutation or copied facts', () => {
+  const {archive,issue,frozen} = applicationFixture(), before = stableJSON({archive,issue,frozen});
+  const next = apply(archive,frozen,issue);
+  assert.deepEqual(next.registry,{schemaVersion:1,tags:[{slug:'ai',label:'AI'},{slug:'security',label:'Security'}]});
+  assert.deepEqual(next.records,[
+    {schemaVersion:1,id:'1',tagSlugs:['ai'],issueIds:['2026-11-13','2026-11-20']},
+    archive.records[1],{schemaVersion:1,id:'3',tagSlugs:['security'],issueIds:['2026-11-20']}]);
+  const stories = tags.projectStories([...archive.issues,issue],next.records,next.registry);
+  assert.equal(stories.find(story => story.item.id === '1').item.title,'New reviewed 1');
+  assert.equal(stableJSON({archive,issue,frozen}),before);
+  const retried = apply({...archive,...next,issues:[...archive.issues,issue]},frozen,issue);
+  assert.equal(stableJSON(retried),stableJSON(next));
+  next.records[0].tagSlugs.push('security'); next.registry.tags[0].label = 'CHANGED';
+  assert.equal(stableJSON({archive,issue,frozen}),before,'returned values must not alias inputs');
+});
+
+test('apply preserves compatible independently appended labels, including an already-present frozen addition', () => {
+  const {archive,issue,frozen} = applicationFixture();
+  archive.registry.tags.push({slug:'databases',label:'Databases'},{slug:'security',label:'Security'});
+  archive.records[1].tagSlugs = ['databases','security'];
+  const next = apply(archive,frozen,issue);
+  assert.deepEqual(next.registry,archive.registry);
+  assert.deepEqual(next.records[1],archive.records[1]);
+});
+
+for (const [name, mutate] of [
+  ['removed snapshot tag', ({archive}) => { archive.registry.tags = []; archive.records.forEach(record => { record.tagSlugs = ['other']; }); }],
+  ['renamed snapshot label', ({archive}) => { archive.registry.tags[0].label = 'Artificial Intelligence'; }],
+  ['snapshot slug reinterpreted', ({archive}) => { archive.registry.tags[0].label = 'Databases'; }],
+  ['unrequested snapshot mapping removed', ({archive,frozen}) => { frozen.registry.tags.push({slug:'security',label:'Security'}); frozen.registrySha256 = tags.registrySha256(frozen.registry); frozen.additions = []; frozen.assignments['3'] = ['ai']; }],
+  ['conflicting new slug', ({archive}) => { archive.registry.tags.push({slug:'security',label:'Different Meaning'}); archive.records[1].tagSlugs = ['security']; }],
+  ['same new label at different slug', ({archive}) => { archive.registry.tags.push({slug:'safety',label:'Security'}); archive.records[1].tagSlugs = ['safety']; }],
+  ['existing assignment changed', ({frozen}) => { frozen.assignments['1'] = ['security']; }],
+  ['existing assignment augmented', ({frozen}) => { frozen.assignments['1'] = ['ai','security']; }],
+  ['incomplete historical coverage', ({archive}) => { archive.records.pop(); }],
+  ['unrelated extra record', ({archive}) => { archive.records.push({schemaVersion:1,id:'9',tagSlugs:['ai'],issueIds:['2026-11-13']}); }],
+  ['bad historical references', ({archive}) => { archive.records[1].issueIds = ['2026-11-20']; }],
+  ['replacement of imported issue', ({archive,issue}) => { archive.issues.push({...structuredClone(issue),collectedAt:'2026-11-20T08:06:00Z'}); }],
+  ['correction instead of weekly issue', ({issue}) => { issue.revision = 2; issue.correction = {previousRevision:1,correctedAt:'2026-11-21T08:00:00Z',note:'Not a weekly append.'}; }],
+]) {
+  test(`apply refuses ${name}`, () => {
+    const setup = applicationFixture(); mutate(setup); const before = stableJSON(setup);
+    assert.throws(() => apply(setup.archive,setup.frozen,setup.issue)); assert.equal(stableJSON(setup),before);
+  });
+}
+
+for (const [name, mutate] of [
+  ['unknown root', f => { f.private = 'PRIVATE_SENTINEL'; }],
+  ['version', f => { f.schemaVersion = 2; }],
+  ['wrong issue', f => { f.issueId = '2026-11-13'; }],
+  ['review hash syntax', f => { f.reviewedSha256 = 'placeholder'; }],
+  ['registry hash mismatch', f => { f.registrySha256 = sha('changed'); }],
+  ['registry hash syntax', f => { f.registrySha256 += '\n'; }],
+  ['missing ID', f => { delete f.assignments['3']; }],
+  ['extra ID', f => { f.assignments['2'] = ['ai']; }],
+  ['nonliteral ID', f => { f.assignments['03'] = f.assignments['3']; delete f.assignments['3']; }],
+  ['assignments root', f => { f.assignments = []; }],
+  ['empty assignment', f => { f.assignments['3'] = []; }],
+  ['unknown assignment', f => { f.assignments['3'] = ['unknown']; }],
+  ['duplicate assignment', f => { f.assignments['3'] = ['security','security']; }],
+  ['unsorted assignment', f => { f.assignments['3'] = ['security','ai']; }],
+  ['additions root', f => { f.additions = {}; }],
+  ['addition repeats snapshot', f => { f.additions.unshift({slug:'ai',label:'AI'}); }],
+  ['addition duplicates label', f => { f.additions = [{slug:'new',label:'ai'}]; f.assignments['3'] = ['new']; }],
+  ['unsafe addition', f => { f.additions[0].slug = '../security'; }],
+  ['unknown addition field', f => { f.additions[0].url = 'PRIVATE_SENTINEL'; }],
+  ['unused addition', f => { f.assignments['3'] = ['ai']; }],
+]) {
+  test(`apply validates frozen sidecar: ${name}`, () => {
+    const setup = applicationFixture(); mutate(setup.frozen);
+    assert.throws(() => apply(setup.archive,setup.frozen,setup.issue));
+  });
+}
+
+test('apply carries a syntactically valid review hash; private runtime verifies actual reviewed bytes', () => {
+  const {archive,frozen,issue} = applicationFixture(); frozen.reviewedSha256 = sha('different actual bytes');
+  assert.equal(apply(archive,frozen,issue).records.length,3);
+});
+
+async function treeSnapshot(root) {
+  const result = {};
+  async function walk(dir) {
+    for (const name of (await readdir(dir)).sort()) {
+      const filename = path.join(dir,name), info = await lstat(filename), relative = path.relative(root,filename);
+      result[relative] = {mode:info.mode & 0o777};
+      if (info.isSymbolicLink()) result[relative].link = await readlink(filename);
+      else if (info.isDirectory()) await walk(filename);
+      else result[relative] = {...result[relative],bytes:(await readFile(filename)).toString('base64'),ino:info.ino,mtime:info.mtimeMs,ctime:info.ctimeMs};
+    }
+  }
+  await walk(root); return result;
+}
+async function applicationWorkspace(t) {
+  const setup = applicationFixture(), {root,privateDir} = await workspace(t);
+  const dataDir = await writeTagArchive(t,setup.archive), issuePath = path.join(dataDir,'issues',`${setup.issue.issueId}.json`), sidecar = path.join(privateDir,'frozen.json');
+  await writeFile(issuePath,stableJSON(setup.issue),{mode:0o644});
+  await writeFile(sidecar,stableJSON(setup.frozen),{mode:0o600});
+  const args = ['apply','--sidecar',sidecar,'--issue',issuePath,'--data-dir',dataDir];
+  return {...setup,root,privateDir,dataDir,issuePath,sidecar,args};
+}
+
+test('CLI apply reconciles exactly the imported issue, writes canonical public records and retries byte-identically without writes', async t => {
+  const setup = await applicationWorkspace(t), before = await treeSnapshot(setup.dataDir), privateBefore = await treeSnapshot(setup.privateDir);
+  // The global loader must remain strict before application.
+  await assert.rejects(tags.loadStoryArchive(setup.dataDir),/coverage|references/);
+  success(cli(...setup.args));
+  const expected = apply(setup.archive,setup.frozen,setup.issue), after = await treeSnapshot(setup.dataDir);
+  assert.deepEqual(Object.keys(after).sort(),[...Object.keys(before),'stories/3.json'].sort());
+  for (const relative of Object.keys(before).filter(name => !['tags.json','stories/1.json'].includes(name))) assert.deepEqual(after[relative],before[relative],relative);
+  assert.equal(await readFile(path.join(setup.dataDir,'tags.json'),'utf8'),stableJSON(expected.registry));
+  for (const record of expected.records) {
+    const filename = path.join(setup.dataDir,'stories',`${record.id}.json`);
+    assert.equal(await readFile(filename,'utf8'),stableJSON(record)); assert.equal((await stat(filename)).mode & 0o777,0o644);
+  }
+  assert.equal((await stat(path.join(setup.dataDir,'tags.json'))).mode & 0o777,0o644);
+  await tags.loadStoryArchive(setup.dataDir);
+  success(cli(...setup.args)); assert.deepEqual(await treeSnapshot(setup.dataDir),after,'retry performs no public writes');
+  assert.deepEqual(await treeSnapshot(setup.privateDir),privateBefore);
+});
+
+test('CLI apply preserves retained historical issue/revision bytes and independent registry additions', async t => {
+  const setup = applicationFixture(), previous = structuredClone(setup.archive.issues[0]);
+  setup.archive.issues[0].revision = 2;
+  setup.archive.issues[0].correction = {previousRevision:1,correctedAt:'2026-11-14T08:00:00Z',note:'Retained correction.'};
+  setup.archive.revisions.push(previous);
+  setup.archive.registry.tags.push({slug:'databases',label:'Databases'}); setup.archive.records[1].tagSlugs = ['databases'];
+  const dataDir = await writeTagArchive(t,setup.archive), {privateDir} = await workspace(t), sidecar = path.join(privateDir,'frozen.json'), issuePath = path.join(dataDir,'issues',`${setup.issue.issueId}.json`);
+  await writeFile(sidecar,stableJSON(setup.frozen),{mode:0o600}); await writeFile(issuePath,stableJSON(setup.issue));
+  const before = await treeSnapshot(dataDir);
+  success(cli('apply','--sidecar',sidecar,'--issue',issuePath,'--data-dir',dataDir));
+  const after = await treeSnapshot(dataDir);
+  for (const relative of Object.keys(before).filter(name => name.startsWith('issues/') || name.startsWith('revisions/'))) assert.deepEqual(after[relative],before[relative]);
+  assert.deepEqual(JSON.parse(await readFile(path.join(dataDir,'tags.json'),'utf8')).tags.map(tag => tag.slug),['ai','databases','security']);
+});
+
+for (const [name, mutate] of [
+  ['missing historical record', async s => { await rm(path.join(s.dataDir,'stories','2.json')); }],
+  ['missing registry (not a backfill)', async s => { await rm(path.join(s.dataDir,'tags.json')); }],
+  ['partial record write', async s => { await writeFile(path.join(s.dataDir,'stories','3.json'),stableJSON({schemaVersion:1,id:'3',tagSlugs:['ai'],issueIds:[s.issue.issueId]})); }],
+  ['partial reference append', async s => { await writeFile(path.join(s.dataDir,'stories','1.json'),stableJSON({schemaVersion:1,id:'1',tagSlugs:['ai'],issueIds:['2026-11-13','2026-11-20']})); }],
+  ['partial registry write', async s => { await writeFile(path.join(s.dataDir,'tags.json'),stableJSON({...s.archive.registry,tags:[...s.archive.registry.tags,...s.frozen.additions]})); }],
+  ['unrecognized crash temporary file', async s => { await writeFile(path.join(s.dataDir,'stories','.3.json.interrupted'),'incomplete'); }],
+  ['wrong story filename', async s => { await writeFile(path.join(s.dataDir,'stories','9.json'),stableJSON(s.archive.records[0])); }],
+  ['unexpected story name', async s => { await writeFile(path.join(s.dataDir,'stories','01.json'),stableJSON(s.archive.records[0])); }],
+  ['unexpected story directory', async s => { await mkdir(path.join(s.dataDir,'stories','3.json')); }],
+  ['placeholder directory in issues', async s => { await mkdir(path.join(s.dataDir,'issues','.gitkeep')); }],
+  ['symlink story file', async s => { const filename=path.join(s.dataDir,'stories','2.json'); await rm(filename); await symlink(path.join(s.dataDir,'stories','1.json'),filename); }],
+  ['hardlink story file', async s => { await link(path.join(s.dataDir,'stories','2.json'),path.join(s.privateDir,'alias')); }],
+  ['symlink registry', async s => { await rm(path.join(s.dataDir,'tags.json')); await symlink(s.sidecar,path.join(s.dataDir,'tags.json')); }],
+  ['private public file mode', async s => { await chmod(path.join(s.dataDir,'stories','2.json'),0o600); }],
+  ['executable public file mode', async s => { await chmod(path.join(s.dataDir,'tags.json'),0o755); }],
+  ['writable data root', async s => { await chmod(s.dataDir,0o777); }],
+  ['writable story directory', async s => { await chmod(path.join(s.dataDir,'stories'),0o777); }],
+  ['symlink data root', async s => { const alias=path.join(s.root,'data-link'); await symlink(s.dataDir,alias); s.args[s.args.length-1]=alias; }],
+  ['symlink issue input', async s => { const alias=path.join(s.privateDir,'issue-link'); await symlink(s.issuePath,alias); s.args[s.args.indexOf('--issue')+1]=alias; }],
+  ['symlink sidecar input', async s => { const alias=path.join(s.privateDir,'sidecar-link'); await symlink(s.sidecar,alias); s.args[s.args.indexOf('--sidecar')+1]=alias; }],
+  ['nonprivate sidecar mode', async s => { await chmod(s.sidecar,0o644); }],
+  ['nonprivate sidecar parent', async s => { await chmod(s.privateDir,0o755); }],
+  ['sidecar inside archive', async s => { const filename=path.join(s.dataDir,'frozen.json'); await writeFile(filename,stableJSON(s.frozen),{mode:0o600}); s.args[s.args.indexOf('--sidecar')+1]=filename; }],
+  ['different supplied issue', async s => { const filename=path.join(s.privateDir,'different.json'); await writeFile(filename,stableJSON({...s.issue,collectedAt:'2026-11-20T08:06:00Z'})); s.args[s.args.indexOf('--issue')+1]=filename; }],
+  ['issue not imported yet', async s => { await rm(s.issuePath); const filename=path.join(s.privateDir,'issue.json'); await writeFile(filename,stableJSON(s.issue)); s.args[s.args.indexOf('--issue')+1]=filename; }],
+  ['frozen assignment conflict', async s => { s.frozen.assignments['1']=['security']; await writeFile(s.sidecar,stableJSON(s.frozen)); }],
+  ['registry movement conflict', async s => { s.archive.registry.tags[0].label='CHANGED'; await writeFile(path.join(s.dataDir,'tags.json'),stableJSON(s.archive.registry)); }],
+  ['malformed sidecar', async s => { await writeFile(s.sidecar,'{PRIVATE_SENTINEL'); }],
+  ['oversized sidecar', async s => { await writeFile(s.sidecar,' '.repeat(16*1024*1024+1)); }],
+  ['invalid sidecar UTF-8', async s => { await writeFile(s.sidecar,Buffer.from([0xff,0xfe])); }],
+]) {
+  test(`CLI apply preflights without public mutation: ${name}`, async t => {
+    const setup = await applicationWorkspace(t); await mutate(setup); const before = await treeSnapshot(setup.dataDir);
+    const result = cli(...setup.args); assert.equal(result.status,1); assert.equal(result.stdout,''); assert.doesNotMatch(result.stderr,/PRIVATE_SENTINEL/);
+    assert.deepEqual(await treeSnapshot(setup.dataDir),before);
+  });
+}
+
+test('CLI apply checks computed output byte limits before its first public write', async t => {
+  const setup = await applicationWorkspace(t), before=await treeSnapshot(setup.dataDir);
+  const registryBytes=stableJSON(apply(setup.archive,setup.frozen,setup.issue).registry), measure=Buffer.byteLength;
+  // Inject an oversized measurement at the byte-count boundary rather than
+  // allocate hundreds of thousands of tags merely to exercise preflight order.
+  Buffer.byteLength=(value,...args) => value === registryBytes ? 16*1024*1024+1 : measure(value,...args);
+  try { await assert.rejects(taggingMain(setup.args), /byte limit/); }
+  finally { Buffer.byteLength=measure; }
+  assert.deepEqual(await treeSnapshot(setup.dataDir),before);
+});
+
+test('CLI apply also handles the first weekly issue from a genuinely empty archive', async t => {
+  const {issue} = applicationFixture(), archive = {issues:[],revisions:[],registry:empty(),records:[]};
+  const i = {...input(empty()),issueId:issue.issueId,stories:[{...input().stories[0]},{...input().stories[1],id:'3'}]};
+  const frozen = validate(i,{assignments:{'1':['AI'],'3':['Security']}});
+  const dataDir = await writeTagArchive(t,archive), {privateDir} = await workspace(t), sidecar=path.join(privateDir,'frozen.json'), issuePath=path.join(dataDir,'issues',`${issue.issueId}.json`);
+  await writeFile(sidecar,stableJSON(frozen),{mode:0o600}); await writeFile(issuePath,stableJSON(issue));
+  success(cli('apply','--sidecar',sidecar,'--issue',issuePath,'--data-dir',dataDir));
+  assert.deepEqual((await tags.loadStoryArchive(dataDir)).records.map(record => record.id).sort(),['1','3']);
+});
+
+test('CLI apply never canonicalizes unrelated historical records on a weekly append', async t => {
+  const setup = await applicationWorkspace(t), filename=path.join(setup.dataDir,'stories','2.json');
+  await writeFile(filename,` ${JSON.stringify(setup.archive.records[1])}\n\n`);
+  const before = await treeSnapshot(setup.dataDir);
+  success(cli(...setup.args)); assert.deepEqual((await treeSnapshot(setup.dataDir))['stories/2.json'],before['stories/2.json']);
+});
+
+test('a real mid-write I/O failure is reported and the incomplete application cannot retry as success', async t => {
+  const setup = await applicationWorkspace(t), before = await treeSnapshot(setup.dataDir);
+  // Inject at the filesystem boundary, not the reconciliation helper: commit
+  // the first atomic rename then fail as if the process lost its disk/checkout.
+  const script = `import fs from 'node:fs/promises';
+    import {syncBuiltinESMExports} from 'node:module';
+    const rename = fs.rename;
+    fs.rename = async (...args) => { await rename(...args); throw new Error('simulated I/O failure'); };
+    syncBuiltinESMExports();
+    const {main} = await import('./scripts/tagging.mjs');
+    await main(${JSON.stringify(setup.args)}).then(() => {process.exitCode=0;}, () => {process.exitCode=1;});`;
+  const interrupted = spawnSync(process.execPath,['--input-type=module','-e',script],{encoding:'utf8',timeout:15000});
+  assert.equal(interrupted.status,1,interrupted.stderr);
+  const partial = await treeSnapshot(setup.dataDir);
+  assert.notDeepEqual(partial['stories/1.json'],before['stories/1.json'],'first atomic write really occurred');
+  assert.deepEqual(partial['tags.json'],before['tags.json']);
+  assert.equal(cli(...setup.args).status,1); assert.deepEqual(await treeSnapshot(setup.dataDir),partial);
+  for (const relative of Object.keys(before).filter(name => name.startsWith('issues/'))) assert.deepEqual(partial[relative],before[relative]);
+});
+
+test('CLI apply refuses a conflicting already-applied assignment and retains exact public bytes', async t => {
+  const setup = await applicationWorkspace(t); success(cli(...setup.args));
+  setup.frozen.assignments['1']=['security']; await writeFile(setup.sidecar,stableJSON(setup.frozen));
+  const before = await treeSnapshot(setup.dataDir);
+  assert.equal(cli(...setup.args).status,1); assert.deepEqual(await treeSnapshot(setup.dataDir),before);
+});
+
+test('CLI apply failure diagnostics are private and never claim a partially written checkout is unchanged', async t => {
+  const setup=await applicationWorkspace(t); await writeFile(setup.sidecar,'{PRIVATE_SENTINEL');
+  const result=cli(...setup.args); assert.equal(result.status,1);
+  assert.equal(result.stderr,'Tagging application failed; inspect or restore the checkout before retrying.\n');
+  assert.equal(result.stdout,'');
+});
+
+test('CLI apply strictly requires only its sidecar, issue and explicit archive arguments', async t => {
+  const setup = await applicationWorkspace(t), before = await treeSnapshot(setup.dataDir);
+  for (const args of [setup.args.slice(0,-2),setup.args.slice(0,-1),[...setup.args,'--archive'],[...setup.args,'--output',setup.sidecar],[...setup.args,'--sidecar',setup.sidecar]]) assert.equal(cli(...args).status,1);
+  assert.deepEqual(await treeSnapshot(setup.dataDir),before);
 });
 
 test('prompt requires semantic reuse, JSON-only response, multiple tags and untrusted-text handling, not a classifier fallback', async () => {
