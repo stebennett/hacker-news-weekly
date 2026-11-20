@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cp, mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
-import { spawnSync } from 'node:child_process';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { isolatedBuildRoot, runBuild } from './site-artifact-fixtures.mjs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fixture } from './site-fixtures.mjs';
@@ -47,17 +47,11 @@ function fortyOneStories() {
   return {issues:[issue],revisions:[revision],registry,records,expected};
 }
 
-async function build(data, dist) {
-  // Astro writes .astro/.prerender under its project root, even with a separate
-  // outDir. Isolate this suite from concurrently running weekly fixture builds.
-  const root=path.join(data,'build-root');
-  await mkdir(root);
-  for (const name of ['src','scripts','schema','public','package.json','tsconfig.json']) await cp(name,path.join(root,name),{recursive:true});
-  await symlink(path.resolve('node_modules'),path.join(root,'node_modules'),'dir');
-  await cp('astro.config.mjs',path.join(root,'base-astro.config.mjs'));
-  await writeFile(path.join(root,'astro.config.mjs'),`import config from './base-astro.config.mjs';\nexport default {...config,cacheDir:'./.cache/astro',vite:{...config.vite,cacheDir:'.cache/vite'}};\n`);
-  const result=spawnSync(process.execPath,['scripts/build.mjs'],{cwd:root,encoding:'utf8',timeout:60000,env:{...process.env,TWIHN_DATA_DIR:data,TWIHN_OUT_DIR:dist,TWIHN_SOURCE_REVISION:'tag-route-fixture'}});
+async function build(data, dist, root) {
+  root ??= await isolatedBuildRoot(data);
+  const result=runBuild(root,data,dist);
   assert.equal(result.status,0,result.stdout+result.stderr);
+  return root;
 }
 
 async function serve(t, dist) {
@@ -90,7 +84,7 @@ test('real static tag routes serve all 41 unique stories in 20/20/1 pages with e
   const data=await writeTagArchive(t,archive), dist=path.join(data,'output');
   const resolved=await loadStoryArchive(data);
   assert.equal(resolved.stories.length,41,'valid, complete unique-story input before building');
-  await build(data,dist);
+  const root=await build(data,dist);
   const get=await serve(t,dist);
   const directory=await get('/tags/');
   assertSharedShell(directory,'/tags/');
@@ -108,6 +102,11 @@ test('real static tag routes serve all 41 unique stories in 20/20/1 pages with e
     assert.match(html,/<h1>AI<\/h1>/);
     assert.match(html,/41 stories/);
     const ids=idsIn(html); allIds.push(...ids);
+    assert.deepEqual(cardsIn(html).map(([,id])=>id),ids,'card extraction cannot skip HN markers');
+    assert.match(html,new RegExp(`<ol start="${(page-1)*20+1}">`));
+    assert.match(html,new RegExp(`<span aria-current="page">Page ${page} of 3</span>`));
+    if (page>1) assert.match(html,/rel="prev">Previous/);
+    if (page<3) assert.match(html,/rel="next">Next/);
     assert.deepEqual(ids,archive.expected.slice((page-1)*20,page*20),`page ${page} exact newest/numeric ID order`);
     const pagination=html.match(/<nav\b[^>]*aria-label="Tag archive pagination"[^>]*>([\s\S]*?)<\/nav>/)?.[1];
     assert.ok(pagination,'accessible native-anchor pagination');
@@ -144,15 +143,117 @@ test('real static tag routes serve all 41 unique stories in 20/20/1 pages with e
     await assert.rejects(readFile(path.join(dist,route,'index.html')), {code:'ENOENT'});
   }
   for (const route of ['/','/issues/2026-11-13/']) assertSharedShell(await get(route),route);
-  // Minimal inter-task inventory hook must not broadly authorize invented tag HTML.
+  // Regenerating hashes must never authorize semantically false artifacts.
   const previous={data:process.env.TWIHN_DATA_DIR,revision:process.env.TWIHN_SOURCE_REVISION};
   try {
     process.env.TWIHN_DATA_DIR=data; process.env.TWIHN_SOURCE_REVISION='tag-route-fixture';
     await verifyDist(dist);
+    await t.test('complete canonical public JSON and schema exports are inventoried',async()=>{
+      const manifest=JSON.parse(await readFile(path.join(dist,'build-manifest.json'),'utf8'));
+      for (const name of ['tags.json',...archive.records.map(record=>`stories/${record.id}.json`)]) {
+        assert.equal(await readFile(path.join(dist,'data',name),'utf8'),await readFile(path.join(data,name),'utf8'));
+        assert.equal(await get(`/data/${name}`),await readFile(path.join(data,name),'utf8'),'served public record parity');
+        assert.ok(manifest.artifacts[`data/${name}`]);
+      }
+      for (const name of ['tags','story']) {
+        assert.equal(await readFile(path.join(dist,`schema/${name}.schema.json`),'utf8'),stableJSON(JSON.parse(await readFile(`schema/${name}.schema.json`,'utf8'))));
+        assert.equal(await get(`/schema/${name}.schema.json`),stableJSON(JSON.parse(await readFile(`schema/${name}.schema.json`,'utf8'))),'served public schema parity');
+        assert.ok(manifest.artifacts[`schema/${name}.schema.json`]);
+      }
+    });
+    for (const name of ['data/tags.json',`data/stories/${archive.expected[0]}.json`,'schema/tags.schema.json','schema/story.schema.json']) await t.test(`reject forged ${name} with fresh manifest`,async()=>{
+      const target=path.join(dist,name), original=await readFile(target,'utf8');
+      try {
+        const value=JSON.parse(original);
+        if (name.startsWith('schema/')) value.additionalProperties=true;
+        else value.schemaVersion=2;
+        await writeFile(target,stableJSON(value));
+        assert.notEqual(await readFile(target,'utf8'),original,'mutate the actual public contract');
+        await writeFile(path.join(dist,'build-manifest.json'),stableJSON(await makeManifest(dist,'tag-route-fixture',resolved.issues)));
+        await assert.rejects(verifyDist(dist),/data parity/);
+      } finally {await writeFile(target,original);}
+    });
+    const route='tags/ai/index.html', first=archive.expected[0], second=archive.expected[1];
+    const mutations=[
+      ['membership',route,html=>html.replace(`data-hn-id="${first}"`,`data-hn-id="123"`)],
+      ['order',route,html=>html.replace(`data-hn-id="${first}"`,'data-hn-id="SWAP"').replace(`data-hn-id="${second}"`,`data-hn-id="${first}"`).replace('data-hn-id="SWAP"',`data-hn-id="${second}"`)],
+      ['missing card body',route,html=>html.replace(/<li data-hn-id="[^"]+">[\s\S]*?<\/h3>/,'<li data-hn-id="'+first+'">')],
+      ['comment cannot supply summary',route,html=>html.replace(/<p><strong>Story<\/strong>[\s\S]*?<\/p>/,text=>`<!--${text}-->`)],
+      ['summary',route,html=>html.replace('Current reviewed Story','Fabricated reviewed Story')],
+      ['title',route,html=>html.replace('Show HN: fixture','Fabricated title')],
+      ['tag label',route,html=>html.replace('>AI</a>','>Fabricated</a>')],
+      ['tag href',route,html=>html.replace('href="/tags/ai/"','href="/tags/unknown/"')],
+      ['source href',route,html=>html.replace(/(<h3><a href=")[^"]+/, '$1https://example.com/wrong')],
+      ['HN href',route,html=>html.replace(/href="https:\/\/news.ycombinator.com\/item\?id=[^"]+">HN discussion/, 'href="https://example.com/wrong">HN discussion')],
+      ['issue URL',route,html=>html.replace('href="/issues/2026-11-13/"','href="/issues/2026-11-06/"')],
+      ['metrics',route,html=>html.replace('100 points','999 points')],
+      ['archive heading',route,html=>html.replace('<h1>AI</h1>','<h1>Wrong</h1>')],
+      ['archive count',route,html=>html.replace('41 stories','40 stories')],
+      ['pagination count',route,html=>html.replace('Page 1 of 3','Page 1 of 2')],
+      ['pagination href',route,html=>html.replace('href="/tags/ai/2/"','href="/tags/ai/3/"')],
+      ['pagination rel',route,html=>html.replace('rel="next"','rel="prev"')],
+      ['list start','tags/ai/2/index.html',html=>html.replace('start="21"','start="1"')],
+      ['canonical',route,html=>html.replace('https://twihn.com/tags/ai/','https://twihn.com/tags/ai/2/')],
+      ['directory canonical','tags/index.html',html=>html.replace('https://twihn.com/tags/','https://twihn.com/')],
+      ['directory count','tags/index.html',html=>html.replace('41 stories','40 stories')],
+      ['directory label order','tags/index.html',html=>html.replace('>AI</a>','>Zulu</a>')],
+      ['directory complete entries reordered','tags/index.html',html=>html.replace(/(<li><a href="\/tags\/ai\/">[\s\S]*?<\/li>)(<li><a href="\/tags\/z-alpha\/">[\s\S]*?<\/li>)/,'$2$1')],
+      ['directory missing link','tags/index.html',html=>html.replace(/<li><a href="\/tags\/ai\/">[\s\S]*?<\/li>/,'')],
+      ['directory fabricated link','tags/index.html',html=>html.replace('href="/tags/ai/"','href="/tags/fabricated/"')],
+      ['home tag link','index.html',html=>html.replace(/<ul\b[^>]*aria-label="Story tags"[^>]*>[\s\S]*?<\/ul>/,'')],
+      ['issue tag link','issues/2026-11-13/index.html',html=>html.replace(/<ul\b[^>]*aria-label="Story tags"[^>]*>[\s\S]*?<\/ul>/,'')],
+      ['unmarked weekly card','issues/2026-11-13/index.html',html=>html.replace('</article>','<ol><li>Fabricated unmarked card</li></ol></article>')],
+      ['attribute injection',route,html=>html.replace('<h3>','<h3 onclick="alert(1)">')],
+      ['unescaped label','tags/a-zulu/index.html',html=>html.replace('Zulu &amp; &lt;Topics&gt;','Zulu & <Topics>')]
+    ];
+    for (const [name,file,mutate] of mutations) await t.test(`reject ${name} even with fresh manifest`,async()=>{
+      const target=path.join(dist,file), original=await readFile(target,'utf8');
+      const changed=mutate(original); assert.notEqual(changed,original,'mutation must reach generated markup');
+      try {
+        await writeFile(target,changed);
+        await writeFile(path.join(dist,'build-manifest.json'),stableJSON(await makeManifest(dist,'tag-route-fixture',resolved.issues)));
+        await assert.rejects(verifyDist(dist),/HTML|CSP|canonical|tag |card |directory|pagination|escaping/i);
+      } finally {await writeFile(target,original);}
+    });
+    for (const name of ['tags/ai/3/index.html','tags/index.html','data/tags.json','schema/story.schema.json']) await t.test(`missing expected ${name} fails despite regenerated manifest`,async()=>{
+      const target=path.join(dist,name), original=await readFile(target);
+      try {
+        await rm(target);
+        await writeFile(path.join(dist,'build-manifest.json'),stableJSON(await makeManifest(dist,'tag-route-fixture',resolved.issues)));
+        await assert.rejects(verifyDist(dist),/missing public artifact|HTML route inventory/);
+      } finally {await writeFile(target,original);}
+    });
+    for (const name of ['data/tagging.json','data/stories/123.json','tags/fabricated/index.html']) await t.test(`reject unexpected ${name} with fresh manifest`,async()=>{
+      const target=path.join(dist,name);
+      await mkdir(path.dirname(target),{recursive:true});
+      try {
+        await writeFile(target,'{}');
+        await writeFile(path.join(dist,'build-manifest.json'),stableJSON(await makeManifest(dist,'tag-route-fixture',resolved.issues)));
+        await assert.rejects(verifyDist(dist),/unexpected public artifact/);
+      } finally {await rm(target);}
+    });
     await mkdir(path.join(dist,'tags','ai','4'),{recursive:true});
     await writeFile(path.join(dist,'tags','ai','4','index.html'),await readFile(path.join(dist,'tags','ai','index.html')));
     await writeFile(path.join(dist,'build-manifest.json'),stableJSON(await makeManifest(dist,'tag-route-fixture',resolved.issues)));
     await assert.rejects(verifyDist(dist),/unexpected public artifact tags\/ai\/4\/index.html/);
+    await rm(path.join(dist,'tags/ai/4'),{recursive:true});
+    await writeFile(path.join(dist,'build-manifest.json'),stableJSON(await makeManifest(dist,'tag-route-fixture',resolved.issues)));
+    const snapshot=async()=>Object.fromEntries(await Promise.all((await inventory(dist)).map(async name=>[name,await readFile(path.join(dist,name),'utf8')])));
+    const before=await snapshot();
+    await build(data,dist,root);
+    assert.deepEqual(await snapshot(),before,'complete repeated build byte/inventory parity');
+    const keep=new Set(archive.expected.slice(0,20)), issue=archive.issues[0];
+    issue.items=Object.fromEntries(Object.entries(issue.items).filter(([id])=>keep.has(id)));
+    issue.sections[3].itemIds=issue.sections[3].itemIds.filter(id=>keep.has(id));
+    issue.sections[3].qualifyingCount=20; validateIssue(issue);
+    await writeFile(path.join(data,'issues',`${issue.issueId}.json`),stableJSON(issue));
+    for (const record of archive.records.filter(record=>!keep.has(record.id))) await rm(path.join(data,'stories',`${record.id}.json`));
+    await loadStoryArchive(data);
+    await build(data,dist,root); await verifyDist(dist);
+    const shrunk=await inventory(dist);
+    assert.deepEqual(shrunk.filter(name=>name.startsWith('data/stories/')), [...keep].map(id=>`data/stories/${id}.json`).sort(),'no stale public story JSON');
+    assert.deepEqual(shrunk.filter(name=>name.startsWith('tags/ai/')),['tags/ai/index.html'],'obsolete pages disappear on same-output rebuild');
+    assert.deepEqual(idsIn(await readFile(path.join(dist,route),'utf8')),[...keep]);
   } finally {
     for (const [key,value] of [['TWIHN_DATA_DIR',previous.data],['TWIHN_SOURCE_REVISION',previous.revision]]) if (value===undefined) delete process.env[key]; else process.env[key]=value;
   }

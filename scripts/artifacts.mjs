@@ -1,7 +1,8 @@
 import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { loadArchive, stableJSON, schema } from './content.mjs';
+import { stableJSON, schema } from './content.mjs';
+import { loadStoryArchive, tagArchivePages } from './tags.mjs';
 export const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 export async function inventory(root, prefix='') {
   const files = [];
@@ -13,15 +14,18 @@ export async function inventory(root, prefix='') {
   }
   return files.sort();
 }
-export async function expectedData() {
-  const {issues,revisions} = await loadArchive();
-  const data = {'data/index.json':stableJSON(issues.map(x => ({issueId:x.issueId,revision:x.revision,scheduledAt:x.scheduledAt,url:`/issues/${x.issueId}/`,dataUrl:`/data/issues/${x.issueId}.json`}))),'data/latest.json':stableJSON(issues[0] ?? null),'schema/issue.schema.json':stableJSON(schema)};
+export async function expectedData(dataDir) {
+  const archive = await loadStoryArchive(dataDir);
+  const {issues,revisions,registry,records,stories} = archive;
+  const data = {'data/index.json':stableJSON(issues.map(x => ({issueId:x.issueId,revision:x.revision,scheduledAt:x.scheduledAt,url:`/issues/${x.issueId}/`,dataUrl:`/data/issues/${x.issueId}.json`}))),'data/latest.json':stableJSON(issues[0] ?? null),'schema/issue.schema.json':stableJSON(schema),'data/tags.json':stableJSON(registry)};
+  for (const name of ['tags','story']) data[`schema/${name}.schema.json`] = stableJSON(JSON.parse(await readFile(`schema/${name}.schema.json`,'utf8')));
+  for (const record of records) data[`data/stories/${record.id}.json`] = stableJSON(record);
   for (const issue of issues) data[`data/issues/${issue.issueId}.json`] = stableJSON(issue);
   for (const issue of revisions) data[`data/revisions/${issue.issueId}/v${issue.revision}.json`] = stableJSON(issue);
-  return {data,issues};
+  return {...archive,data,pages:tagArchivePages(stories,registry)};
 }
-export async function exportData(dist) {
-  const {data,issues} = await expectedData();
+export async function exportData(dist, expected) {
+  const {data,issues} = expected ?? await expectedData();
   for (const [name,content] of Object.entries(data)) {await mkdir(path.dirname(path.join(dist,name)),{recursive:true}); await writeFile(path.join(dist,name),content);}
   return issues;
 }

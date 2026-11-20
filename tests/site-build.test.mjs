@@ -11,6 +11,7 @@ import { loadStoryArchive } from '../scripts/tags.mjs';
 import { stableJSON, loadArchive, validateIssue } from '../scripts/content.mjs';
 import { inventory } from '../scripts/artifacts.mjs';
 import { verifyDist } from '../scripts/verify-dist.mjs';
+import { isolatedBuildRoot, runBuild } from './site-artifact-fixtures.mjs';
 
 const escape = text => text.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -69,7 +70,8 @@ test('fixture build: served routes, escaping, revisions, archive ordering, repea
     const sourcePaths=[`issues/${latest.issueId}.json`,`issues/${old.issueId}.json`,`revisions/${old.issueId}/v1.json`];
     const sourceBytes=await Promise.all(sourcePaths.map(name=>readFile(`${data}/${name}`,'utf8')));
     process.env.TWIHN_DATA_DIR=data; process.env.TWIHN_SOURCE_REVISION='fixture-source';
-    const build=()=>{const result=spawnSync(process.execPath,['scripts/build.mjs'],{encoding:'utf8',timeout:60000,env:{...process.env,TWIHN_OUT_DIR:dist}}); assert.equal(result.status,0,result.stdout+result.stderr);};
+    const root=await isolatedBuildRoot(tmp);
+    const build=()=>{const result=runBuild(root,data,dist,'fixture-source'); assert.equal(result.status,0,result.stdout+result.stderr);};
     build(); await verifyDist(dist);
     const first = Object.fromEntries(await Promise.all((await inventory(dist)).map(async name=>[name,await readFile(`${dist}/${name}`,'utf8')])));
     build();
@@ -87,6 +89,17 @@ test('fixture build: served routes, escaping, revisions, archive ordering, repea
     assertWeeklyStories(home,latest,registry,records);
     assertWeeklyStories(html,latest,registry,records);
     assertWeeklyStories(corrected,old,registry,records);
+    const manifestPath=path.join(dist,'build-manifest.json');
+    const {makeManifest}=await import('../scripts/artifacts.mjs');
+    for (const route of ['index.html','issues/2026-11-06/index.html']) {
+      const target=path.join(dist,route), original=await readFile(target,'utf8');
+      try {
+        await writeFile(target,original.replace(/<ul\b[^>]*aria-label="Story tags"[^>]*>[\s\S]*?<\/ul>/,''));
+        await writeFile(manifestPath,stableJSON(await makeManifest(dist,'fixture-source',[latest,old])));
+        await assert.rejects(verifyDist(dist),/HTML|card |tag /i,'historical/home missing tags fail independent of hashes');
+      } finally {await writeFile(target,original);}
+    }
+    await writeFile(manifestPath,stableJSON(await makeManifest(dist,'fixture-source',[latest,old])));
     assert.doesNotMatch(corrected,/&lt;script&gt;alert\(&quot;x&quot;\)/, 'historical card must use historical facts, not the latest resolved item');
     assert.deepEqual(await Promise.all(sourcePaths.map(name=>readFile(`${data}/${name}`,'utf8'))),sourceBytes,'build never rewrites source issues or retained revisions');
     for (let i=0;i<sourcePaths.length;i++) assert.equal(await readFile(`${dist}/data/${sourcePaths[i]}`,'utf8'),sourceBytes[i],'public issue/revision JSON retains exact original bytes');
@@ -104,7 +117,8 @@ test('fixture build: served routes, escaping, revisions, archive ordering, repea
 test('explicit empty tag archive retains neutral bootstrap landing', {timeout:60000}, async t => {
   const data=await writeTagArchive(t,{issues:[],revisions:[],registry:{schemaVersion:1,tags:[]},records:[]});
   const dist=path.join(data,'output');
-  const result=spawnSync(process.execPath,['scripts/build.mjs'],{encoding:'utf8',timeout:60000,env:{...process.env,TWIHN_DATA_DIR:data,TWIHN_OUT_DIR:dist}});
+  const root=await isolatedBuildRoot(data);
+  const result=runBuild(root,data,dist);
   assert.equal(result.status,0,result.stdout+result.stderr);
   const html=await readFile(`${dist}/index.html`,'utf8');
   assert.match(html,/No issues have been published yet/);
@@ -117,8 +131,27 @@ test('nonempty weekly build fails closed when story tagging is incomplete', {tim
   const data=await writeTagArchive(t);
   await loadStoryArchive(data); // Prove valid control input before removing one record.
   await rm(path.join(data,'stories','1.json'));
-  const result=spawnSync(process.execPath,['scripts/build.mjs'],{encoding:'utf8',timeout:60000,env:{...process.env,TWIHN_DATA_DIR:data,TWIHN_OUT_DIR:path.join(data,'output')}});
+  const root=await isolatedBuildRoot(data);
+  const check=spawnSync('npm',['run','check'],{cwd:root,encoding:'utf8',timeout:60000,env:{...process.env,TWIHN_DATA_DIR:data}});
+  assert.notEqual(check.status,0,'npm check data validator must reject incomplete story coverage');
+  assert.match(check.stdout+check.stderr,/story coverage mismatch: missing \[1\]/);
+  const result=runBuild(root,data,path.join(data,'output'));
   assert.notEqual(result.status,0,'a nonempty issue cannot silently render without complete tags');
   assert.match(result.stdout+result.stderr,/story coverage mismatch: missing \[1\]/);
   await assert.rejects(readFile(path.join(data,'output','index.html')), {code:'ENOENT'}, 'untagged homepage must not be emitted');
+});
+
+test('unused registry entries are rejected by check and build preflight without altering output',async t=>{
+  const data=await writeTagArchive(t), dist=path.join(data,'output');
+  await loadStoryArchive(data);
+  const registry=JSON.parse(await readFile(path.join(data,'tags.json'),'utf8'));
+  registry.tags.push({slug:'unused',label:'Unused'});
+  await writeFile(path.join(data,'tags.json'),stableJSON(registry));
+  await mkdir(dist); await writeFile(path.join(dist,'sentinel.txt'),'must survive preflight');
+  for (const script of ['validate','build']) {
+    const result=spawnSync(process.execPath,[`scripts/${script}.mjs`],{encoding:'utf8',timeout:60000,env:{...process.env,TWIHN_DATA_DIR:data,TWIHN_OUT_DIR:dist}});
+    assert.notEqual(result.status,0);
+    assert.match(result.stdout+result.stderr,/unused registry tag: unused/);
+    assert.equal(await readFile(path.join(dist,'sentinel.txt'),'utf8'),'must survive preflight');
+  }
 });
