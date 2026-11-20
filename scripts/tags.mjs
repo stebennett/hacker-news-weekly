@@ -1,5 +1,6 @@
 import { readFile, readdir, lstat } from 'node:fs/promises';
-import { loadArchive, validateIssue } from './content.mjs';
+import { loadArchive, validateIssue, stableJSON } from './content.mjs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
@@ -85,6 +86,93 @@ export function projectStories(issues, records, registry) {
   }
   for (const tag of registry.tags) requireThat(usedTags.has(tag.slug), `unused registry tag: ${tag.slug}`);
   return stories;
+}
+
+export const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
+export const registrySha256 = registry => sha256(stableJSON(validateRegistry(registry)));
+
+const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+function exactKeys(value, keys, label) {
+  requireThat(isObject(value) && Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key)), `Invalid ${label} fields`);
+}
+export function validateTaggingIssueId(issueId) {
+  requireThat(typeof issueId === 'string' && /^\d{4}-\d{2}-\d{2}(?![\s\S])/u.test(issueId), 'Invalid tagging issue ID');
+  const date = new Date(`${issueId}T08:00:00Z`);
+  requireThat(Number.isFinite(date.valueOf()) && date.toISOString().slice(0, 10) === issueId && date.getUTCDay() === 5, 'tagging issue must be a valid Friday');
+  return issueId;
+}
+
+// A structurally valid review digest is only a binding carried forward here.
+// The private runtime must compare it to the actual frozen review bytes later.
+export function validateTaggingInput(input) {
+  exactKeys(input, ['schemaVersion','issueId','reviewedSha256','registrySha256','registry','stories'], 'tagging input');
+  requireThat(input.schemaVersion === 1, 'Invalid tagging schema version');
+  validateTaggingIssueId(input.issueId);
+  const digest = value => typeof value === 'string' && /^[a-f0-9]{64}(?![\s\S])/u.test(value);
+  requireThat(digest(input.reviewedSha256) && digest(input.registrySha256), 'Invalid tagging SHA-256 binding');
+  validateRegistry(input.registry);
+  requireThat(input.registrySha256 === registrySha256(input.registry), 'tagging registry digest mismatch');
+  requireThat(Array.isArray(input.stories) && input.stories.length > 0, 'tagging stories must be a nonempty array');
+  const ids = new Set(), slugs = new Set(input.registry.tags.map(tag => tag.slug));
+  for (const story of input.stories) {
+    exactKeys(story, ['id','title','story','discussion','existingTagSlugs'], 'tagging story');
+    requireThat(storyIdStructural(story.id), 'Invalid literal tagging story ID');
+    requireThat(!ids.has(story.id), 'duplicate tagging story ID'); ids.add(story.id);
+    for (const key of ['title','story','discussion']) requireThat(typeof story[key] === 'string' && story[key].trim().length > 0, `Invalid tagging ${key} text`);
+    requireThat(Array.isArray(story.existingTagSlugs) && story.existingTagSlugs.every(slug => typeof slug === 'string' && slugs.has(slug)), 'Invalid existing tag assignments');
+    requireSorted(story.existingTagSlugs, 'existing tag assignments');
+  }
+  return input;
+}
+
+export function slugForLabel(label) {
+  normalizeLabel(label);
+  const slug = label.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase()
+    .replace(/\+/gu, '-plus-').replace(/#/gu, '-sharp-')
+    .replace(/[^a-z0-9]+/gu, '-').replace(/^-|-$/gu, '');
+  requireThat(slug.length > 0 && slug.length <= 80, 'tag label cannot produce a safe bounded slug');
+  return slug;
+}
+
+export function validateTagging(input, response) {
+  validateTaggingInput(input);
+  exactKeys(response, ['assignments'], 'tagging response');
+  requireThat(isObject(response.assignments), 'Invalid tagging assignments object');
+  const ids = new Set(input.stories.map(story => story.id)), keys = Object.keys(response.assignments);
+  requireThat(keys.length === ids.size && keys.every(id => ids.has(id)), 'tagging response must cover exact requested IDs');
+  const known = new Map(input.registry.tags.map(tag => [normalizeLabel(tag.label), tag]));
+  const bySlug = new Map(input.registry.tags.map(tag => [tag.slug, tag]));
+  const added = new Map(), assignments = {};
+  // Input/response property ordering never determines an addition's identity.
+  for (const story of [...input.stories].sort((a, b) => BigInt(a.id) < BigInt(b.id) ? -1 : 1)) {
+    const labels = response.assignments[story.id];
+    requireThat(Array.isArray(labels) && labels.length > 0, 'tagging assignment must be a nonempty label array');
+    const seen = new Set(), slugs = [];
+    for (const label of labels) {
+      const key = normalizeLabel(label);
+      requireThat(!seen.has(key), 'duplicate equivalent tag labels for story'); seen.add(key);
+      requireThat(!/^[a-z][a-z0-9+.-]*:\S|:\/\/|\.\.[/\\]|^[/\\]/iu.test(label.trim()), 'tag labels cannot be URLs or paths');
+      let tag = known.get(key);
+      if (!tag) {
+        requireThat(label === label.trim() && label === label.normalize('NFC'), 'new tag label must already be trimmed and NFC');
+        tag = added.get(key);
+        if (tag) requireThat(tag.label === label, 'duplicate mechanically equivalent new tag labels');
+        else {
+          tag = {slug:slugForLabel(label), label};
+          requireThat(!bySlug.has(tag.slug), 'new tag slug collision');
+          added.set(key, tag); bySlug.set(tag.slug, tag);
+        }
+      }
+      slugs.push(tag.slug);
+    }
+    slugs.sort();
+    requireThat(!story.existingTagSlugs.length || stableJSON(slugs) === stableJSON(story.existingTagSlugs), 'existing story assignments cannot change');
+    assignments[story.id] = slugs;
+  }
+  const additions = [...added.values()].sort((a, b) => a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0);
+  validateRegistry({schemaVersion:1,tags:[...input.registry.tags, ...additions].sort((a, b) => a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0)});
+  return {schemaVersion:1,issueId:input.issueId,reviewedSha256:input.reviewedSha256,registrySha256:input.registrySha256,
+    registry:structuredClone(input.registry),assignments,additions};
 }
 
 export const pageSize = 20;

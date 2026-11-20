@@ -1,0 +1,200 @@
+import { constants } from 'node:fs';
+import { open, lstat, readdir } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { TextDecoder } from 'node:util';
+import { HEADINGS, stableJSON, loadArchive } from './content.mjs';
+import { loadStoryArchive, validateRegistry, validateStoryRecord, validateTagging,
+  validateTaggingInput, validateTaggingIssueId, sha256, registrySha256 } from './tags.mjs';
+
+// Bounded local JSON only; this module never calls a model or the network.
+export const maxCandidateBytes = 16 * 1024 * 1024;
+const maxArchiveBytes = 128 * 1024 * 1024;
+const repository = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+const requireThat = (condition, message) => { if (!condition) throw new Error(message); };
+const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+function keys(value, required, optional = []) {
+  requireThat(isObject(value) && required.every(key => Object.hasOwn(value,key)) && Object.keys(value).every(key => required.includes(key) || optional.includes(key)), 'Invalid reviewed fields');
+}
+const numericId = id => typeof id === 'string' && /^[1-9][0-9]*(?![\s\S])/u.test(id);
+const idOrder = (a,b) => BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0;
+
+function parseJSON(bytes) {
+  // JSON.parse's diagnostic may contain input bytes; never pass it to CLI logs.
+  try { return JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(bytes)); }
+  catch { throw new Error('Invalid UTF-8 JSON'); }
+}
+function reviewStories(reviewed, issueId) {
+  keys(reviewed, ['start','end','sections']);
+  const start = Date.parse(reviewed.start), end = Date.parse(reviewed.end);
+  requireThat(typeof reviewed.start === 'string' && typeof reviewed.end === 'string' && Number.isFinite(start) && Number.isFinite(end) && end-start === 7*86400000, 'Invalid reviewed window');
+  const local = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date(end)).map(part => [part.type,part.value]));
+  requireThat(`${local.year}-${local.month}-${local.day}` === issueId && `${local.hour}:${local.minute}:${local.second}` === '08:00:00' && end % 1000 === 0, 'reviewed window does not match intended issue');
+  requireThat(Array.isArray(reviewed.sections) && reviewed.sections.length === 4, 'four reviewed sections required');
+  const unique = new Map();
+  for (const [index, section] of reviewed.sections.entries()) {
+    keys(section, ['heading','items']);
+    requireThat(section.heading === HEADINGS[index] && Array.isArray(section.items), 'Invalid reviewed section');
+    const inSection = new Set();
+    for (const item of section.items) {
+      keys(item, ['id','title','score','comments','created','url','story','discussion'], ['tags']);
+      requireThat(numericId(item.id) && !inSection.has(item.id), 'Invalid or duplicate literal reviewed ID'); inSection.add(item.id);
+      requireThat(['title','story','discussion'].every(key => typeof item[key] === 'string' && item[key].trim().length > 0), 'reviewed text required');
+      requireThat(['score','comments'].every(key => Number.isSafeInteger(item[key]) && item[key] >= 0), 'Invalid reviewed metrics');
+      const created = typeof item.created === 'string' ? Date.parse(item.created) : NaN;
+      requireThat(Number.isFinite(created) && created >= start && created < end, 'Invalid reviewed submission time');
+      requireThat(typeof item.url === 'string', 'Invalid reviewed URL');
+      if (item.url) {
+        let url; try { url = new URL(item.url); } catch { throw new Error('Invalid reviewed URL'); }
+        requireThat(['http:','https:'].includes(url.protocol) && url.hostname && !url.username && !url.password && !/[\s\x00-\x1f\\]/u.test(item.url), 'Invalid reviewed URL');
+      }
+      requireThat(item.tags === undefined || Array.isArray(item.tags) && item.tags.every(tag => typeof tag === 'string'), 'Invalid collector tags');
+      requireThat(!unique.has(item.id) || unique.get(item.id).index < 2 && index < 2 && stableJSON(unique.get(item.id).item) === stableJSON(item), 'Inconsistent duplicate reviewed story');
+      unique.set(item.id, {item,index});
+    }
+  }
+  return [...unique.values()].map(({item}) => item);
+}
+function envelope(items, registry, records, issueId, reviewedBytes) {
+  const previous = new Map(records.map(record => [record.id,record.tagSlugs]));
+  return validateTaggingInput({schemaVersion:1,issueId:validateTaggingIssueId(issueId),reviewedSha256:sha256(reviewedBytes),registrySha256:registrySha256(registry),registry:structuredClone(registry),
+    stories:[...items].sort(idOrder).map(item => ({id:item.id,title:item.title,story:item.story,discussion:item.discussion,existingTagSlugs:[...(previous.get(item.id) ?? [])]}))});
+}
+
+export function prepareTaggingInput(reviewedBytes, archive, issueId) {
+  validateTaggingIssueId(issueId);
+  return envelope(reviewStories(parseJSON(reviewedBytes), issueId), archive.registry, archive.records, issueId, reviewedBytes);
+}
+export function prepareArchiveTaggingInput(archive, issueId) {
+  const issues = [...archive.issues].sort((a,b) => a.issueId.localeCompare(b.issueId));
+  const items = new Map();
+  for (const issue of issues) for (const item of Object.values(issue.items)) items.set(item.id,item);
+  // Archive migration has no single legacy review. Bind the complete canonical
+  // array of current issues (ascending issue ID), never superseded revisions.
+  return envelope([...items.values()], archive.registry, archive.records, issueId, stableJSON(issues));
+}
+
+async function noSymlinks(target, directory = false) {
+  const absolute = path.resolve(target), root = path.parse(absolute).root;
+  let current = root;
+  for (const component of absolute.slice(root.length).split(path.sep).filter(Boolean)) {
+    current = path.join(current, component);
+    const info = await lstat(current);
+    requireThat(!info.isSymbolicLink(), 'Symlink path is not allowed');
+    requireThat(current === absolute && !directory ? info.isFile() : info.isDirectory(), 'Path must be a regular file or directory');
+  }
+  return absolute;
+}
+export async function readPrivateJSONBytes(filename) {
+  const absolute = await noSymlinks(filename);
+  const handle = await open(absolute, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const info = await handle.stat();
+    requireThat(info.isFile() && info.size <= maxCandidateBytes, 'JSON file exceeds size limit or is not regular');
+    const buffer = Buffer.alloc(Math.min(info.size + 1, maxCandidateBytes + 1));
+    let offset = 0;
+    while (offset < buffer.length) {
+      const {bytesRead} = await handle.read(buffer,offset,buffer.length-offset,null);
+      if (!bytesRead) break;
+      offset += bytesRead;
+    }
+    const after = await handle.stat();
+    requireThat(offset === info.size && info.size === after.size && info.mtimeMs === after.mtimeMs && info.ctimeMs === after.ctimeMs, 'JSON file changed while reading');
+    return buffer.subarray(0,offset);
+  } finally { await handle.close(); }
+}
+async function checkDataTree(dataDir) {
+  await noSymlinks(dataDir, true);
+  let total = 0;
+  async function visit(dir) {
+    for (const entry of await readdir(dir, {withFileTypes:true})) {
+      const filename = path.join(dir,entry.name), info = await lstat(filename);
+      requireThat(!info.isSymbolicLink(), 'Symlink archive path is not allowed');
+      if (info.isDirectory()) await visit(filename);
+      else {
+        requireThat(info.isFile() && info.size <= maxCandidateBytes, 'Archive file exceeds size limit or is not regular');
+        total += info.size;
+        requireThat(total <= maxArchiveBytes, 'Archive exceeds byte limit');
+      }
+    }
+  }
+  await visit(dataDir);
+}
+async function exists(filename) {
+  try { await lstat(filename); return true; } catch (error) { if (error.code === 'ENOENT') return false; throw error; }
+}
+async function loadMigrationArchive(dataDir) {
+  const {issues,revisions} = await loadArchive(dataDir);
+  const registryPath = path.join(dataDir,'tags.json');
+  const registry = await exists(registryPath) ? validateRegistry(parseJSON(await readPrivateJSONBytes(registryPath))) : {schemaVersion:1,tags:[]};
+  const records = [], storiesDir = path.join(dataDir,'stories');
+  if (await exists(storiesDir)) {
+    await noSymlinks(storiesDir,true);
+    for (const entry of await readdir(storiesDir, {withFileTypes:true})) {
+      requireThat(entry.isFile() && /^[1-9][0-9]*\.json(?![\s\S])/u.test(entry.name), 'Unexpected migration story path');
+      const record = validateStoryRecord(parseJSON(await readPrivateJSONBytes(path.join(storiesDir,entry.name))), registry);
+      requireThat(entry.name === `${record.id}.json`, 'Migration story filename/ID mismatch');
+      const references = issues.filter(issue => Object.hasOwn(issue.items,record.id)).map(issue => issue.issueId).sort();
+      requireThat(stableJSON(references) === stableJSON(record.issueIds), 'Migration story references do not match current issues');
+      records.push(record);
+    }
+  }
+  return {issues,revisions,registry,records};
+}
+const within = (target, parent) => target === parent || target.startsWith(`${parent}${path.sep}`);
+export async function writeCandidate(filename, value, forbiddenDirs = []) {
+  const target = path.resolve(filename), parent = path.dirname(target);
+  // Private artifacts are not source files, even if a directory is gitignored.
+  requireThat(![repository,...forbiddenDirs.map(dir => path.resolve(dir))].some(dir => within(target,dir)), 'Candidate must be outside repository and public data directories');
+  await noSymlinks(parent,true);
+  const info = await lstat(parent);
+  requireThat(info.uid === process.getuid() && (info.mode & 0o077) === 0, 'Candidate parent must be a private owned directory (0700)');
+  const bytes = stableJSON(value);
+  requireThat(Buffer.byteLength(bytes) <= maxCandidateBytes, 'Candidate exceeds byte limit');
+  const handle = await open(target, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+  try { await handle.chmod(0o600); await handle.writeFile(bytes); await handle.sync(); }
+  finally { await handle.close(); }
+}
+
+function argumentsFor(argv) {
+  const [command,...rest] = argv;
+  const allowed = command === 'input' ? ['--archive','--reviewed','--data-dir','--issue','--output'] : command === 'validate' ? ['--input','--response','--output'] : [];
+  requireThat(allowed.length > 0, 'Usage: node scripts/tagging.mjs input|validate [options]');
+  const options = {};
+  for (let n = 0; n < rest.length; n++) {
+    const key = rest[n];
+    requireThat(allowed.includes(key) && !Object.hasOwn(options,key), 'Unknown or duplicate tagging argument');
+    if (key === '--archive') options[key] = true;
+    else {
+      requireThat(typeof rest[n+1] === 'string' && !rest[n+1].startsWith('--'), 'Missing tagging argument value');
+      options[key] = rest[++n];
+    }
+  }
+  const required = command === 'input' ? ['--data-dir','--issue','--output'] : ['--input','--response','--output'];
+  requireThat(required.every(key => options[key]), 'Missing required tagging arguments');
+  if (command === 'input') requireThat(Boolean(options['--archive']) !== Boolean(options['--reviewed']), 'Use exactly one of --reviewed or --archive');
+  return {command,options};
+}
+export async function main(argv = process.argv.slice(2)) {
+  const {command,options:o} = argumentsFor(argv);
+  if (command === 'input') {
+    validateTaggingIssueId(o['--issue']);
+    await checkDataTree(o['--data-dir']);
+    const archive = o['--archive'] ? await loadMigrationArchive(o['--data-dir']) : await loadStoryArchive(o['--data-dir']);
+    const input = o['--archive'] ? prepareArchiveTaggingInput(archive,o['--issue']) : prepareTaggingInput(await readPrivateJSONBytes(o['--reviewed']),archive,o['--issue']);
+    await writeCandidate(o['--output'],input,[o['--data-dir']]);
+  } else {
+    const input = parseJSON(await readPrivateJSONBytes(o['--input']));
+    const response = parseJSON(await readPrivateJSONBytes(o['--response']));
+    await writeCandidate(o['--output'],validateTagging(input,response));
+  }
+}
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch(error => {
+    // Do not echo parser, schema, path or model diagnostics: they may include
+    // private input bytes. Detailed semantic errors remain available to callers.
+    const limit = /limit|exceeds/iu.test(error.message) ? ' (byte limit)' : '';
+    console.error(`Tagging failed${limit}; no valid candidate was prepared.`);
+    process.exitCode = 1;
+  });
+}
