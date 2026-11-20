@@ -1,4 +1,5 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir, lstat } from 'node:fs/promises';
+import { loadArchive, validateIssue } from './content.mjs';
 import path from 'node:path';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
@@ -46,4 +47,58 @@ export function validateStoryRecord(value, registry) {
   requireSorted(value.tagSlugs, 'story tagSlugs');
   requireSorted(value.issueIds, 'story issueIds');
   return value;
+}
+
+export function projectStories(issues, records, registry) {
+  requireThat(Array.isArray(issues) && Array.isArray(records), 'issues and records must be arrays');
+  validateRegistry(registry);
+  const current = new Map(), references = new Map();
+  for (const value of issues) {
+    const issue = validateIssue(value);
+    requireThat(!current.has(issue.issueId), `duplicate issue ID: ${issue.issueId}`);
+    current.set(issue.issueId, issue);
+    for (const id of Object.keys(issue.items)) {
+      if (!references.has(id)) references.set(id, new Set());
+      references.get(id).add(issue.issueId);
+    }
+  }
+  const byId = new Map();
+  for (const value of records) {
+    const record = validateStoryRecord(value, registry);
+    requireThat(!byId.has(record.id), `duplicate story record ID: ${record.id}`);
+    byId.set(record.id, record);
+  }
+  const missing = [...references.keys()].filter(id => !byId.has(id));
+  const extra = [...byId.keys()].filter(id => !references.has(id));
+  requireThat(!missing.length && !extra.length, `story coverage mismatch: missing [${missing.join(', ')}]; extra [${extra.join(', ')}]`);
+
+  const usedTags = new Set(), stories = [];
+  for (const [id, appearances] of references) {
+    const record = byId.get(id), issueIds = [...appearances].sort();
+    requireThat(record.issueIds.length === issueIds.length && record.issueIds.every((value, index) => value === issueIds[index]), `story ${id} issue references do not match current issues`);
+    const sourceIssueId = issueIds.at(-1);
+    for (const slug of record.tagSlugs) usedTags.add(slug);
+    stories.push({item:current.get(sourceIssueId).items[id], tagSlugs:[...record.tagSlugs], issueIds, sourceIssueId});
+  }
+  for (const tag of registry.tags) requireThat(usedTags.has(tag.slug), `unused registry tag: ${tag.slug}`);
+  return stories;
+}
+
+export async function loadStoryArchive(dataDir = process.env.TWIHN_DATA_DIR || path.resolve('data')) {
+  const {issues, revisions} = await loadArchive(dataDir);
+  const registryPath = path.join(dataDir, 'tags.json');
+  requireThat((await lstat(registryPath)).isFile(), 'tag registry path must be a regular file');
+  const registry = validateRegistry(JSON.parse(await readFile(registryPath, 'utf8')));
+  const storiesDir = path.join(dataDir, 'stories');
+  requireThat((await lstat(storiesDir)).isDirectory(), 'stories path must be a regular directory');
+  const records = [];
+  for (const entry of await readdir(storiesDir, {withFileTypes:true})) {
+    // The negative lookahead anchors the absolute end, unlike $ before a newline.
+    requireThat(entry.isFile() && /^[1-9][0-9]*\.json(?![\s\S])/u.test(entry.name), `unexpected story path: ${entry.name}`);
+    const record = validateStoryRecord(JSON.parse(await readFile(path.join(storiesDir, entry.name), 'utf8')), registry);
+    requireThat(entry.name === `${record.id}.json`, `filename/story ID mismatch: ${entry.name}`);
+    records.push(record);
+  }
+  const stories = projectStories(issues, records, registry);
+  return {issues, revisions, registry, records, stories};
 }
