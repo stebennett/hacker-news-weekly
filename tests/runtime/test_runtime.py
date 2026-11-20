@@ -19,9 +19,10 @@ def reviewed(issue) -> dict:
         return dict(id=str(n), title=f'Title {n}', score=100-n, comments=100-n,
                     created=issue.start, url='https://example.org/article',
                     story='Reviewed source summary.', discussion='Reviewed discussion summary.')
-    ordinary = [item(n) for n in range(1, 11)]
-    ask = [item(n) for n in range(11, 21)]
-    return dict(start=issue.start, end=issue.end, sections=[dict(heading=h, items=copy.deepcopy(items)) for h, items in zip(HEADINGS, [ordinary, ordinary, ask, []])])
+    votes = [item(n) for n in range(1, 11)]
+    comments = [item(n) for n in range(11, 21)]
+    ask = [item(n) for n in range(21, 31)]
+    return dict(start=issue.start, end=issue.end, sections=[dict(heading=h, items=copy.deepcopy(items)) for h, items in zip(HEADINGS, [votes, comments, ask, []])])
 
 class RuntimeTests(unittest.TestCase):
     def setUp(self):
@@ -81,8 +82,8 @@ if mode=='verify-email':print(json.dumps(dict(verified=True,messageId=ctx['messa
         data = reviewed(self.issue);data['end']='2026-11-13T09:00:00Z';self.source.write_text(json.dumps(data))
         with self.assertRaises((RunError,ValueError)): self.prep()
 
-    def test_cross_section_summary_must_be_identical(self):
-        data=reviewed(self.issue);data['sections'][1]['items'][0]['story']='Changed.'
+    def test_overlap_between_ordinary_sections_is_rejected(self):
+        data=reviewed(self.issue);data['sections'][1]['items'][0]=copy.deepcopy(data['sections'][0]['items'][0])
         self.source.write_text(json.dumps(data))
         with self.assertRaises((RunError,ValueError)): self.prep()
 

@@ -18,7 +18,7 @@ function safeURL(raw) {
   const url = new URL(raw);
   requireThat(['http:', 'https:'].includes(url.protocol) && url.hostname && !url.username && !url.password && !/[\s\x00-\x1f\\]/.test(raw), 'unsafe URL');
 }
-export function validateIssue(issue) {
+export function validateIssue(issue, {allowOverlappingOrdinary = false} = {}) {
   requireThat(structural(issue), `Invalid issue schema: ${ajv.errorsText(structural.errors)}`);
   const start = Date.parse(issue.window.start), end = Date.parse(issue.window.end);
   requireThat(end - start === 7 * 86400000 && end === Date.parse(issue.scheduledAt), 'window must be frozen seven days ending at scheduledAt');
@@ -29,7 +29,9 @@ export function validateIssue(issue) {
   requireThat(issue.sections.every((s,i) => s.id === SECTION_IDS[i]), 'missing or reordered sections');
   const used = new Set();
   for (const [index, section] of issue.sections.entries()) {
-    requireThat(section.itemIds.length === (index === 3 ? section.qualifyingCount : Math.min(10, section.qualifyingCount)), 'section length does not match qualifyingCount');
+    const expectedLength = index === 3 ? section.qualifyingCount : index === 1 ? Math.min(10, Math.max(0, section.qualifyingCount - issue.sections[0].itemIds.length)) : Math.min(10, section.qualifyingCount);
+    const legacyCommentLength = Math.min(10, section.qualifyingCount);
+    requireThat(section.itemIds.length === expectedLength || (allowOverlappingOrdinary && index === 1 && section.itemIds.length === legacyCommentLength), 'section length does not match qualifyingCount');
     const metric = index === 0 || index === 3 ? 'score' : 'comments';
     let previous = null;
     for (const id of section.itemIds) {
@@ -46,13 +48,10 @@ export function validateIssue(issue) {
     }
   }
   requireThat(issue.sections[0].qualifyingCount === issue.sections[1].qualifyingCount, 'ordinary population counts differ');
+  const scoreIds = new Set(issue.sections[0].itemIds);
+  requireThat(allowOverlappingOrdinary || !issue.sections[1].itemIds.some(id => scoreIds.has(id)), 'ordinary rankings overlap');
   requireThat(used.size === Object.keys(issue.items).length, 'unreferenced public item');
-  const ordinaryIds = [...new Set([...issue.sections[0].itemIds, ...issue.sections[1].itemIds])];
-  requireThat(ordinaryIds.length <= issue.sections[0].qualifyingCount, 'ordinary selection exceeds population');
-  for (const [index,metric] of [[0,'score'],[1,'comments']]) {
-    const ranked = [...ordinaryIds].sort((a,b) => issue.items[b][metric]-issue.items[a][metric] || issue.items[b].score-issue.items[a].score || issue.items[b].comments-issue.items[a].comments || b.localeCompare(a)).slice(0,10);
-    requireThat(stableJSON(ranked) === stableJSON(issue.sections[index].itemIds), 'independent rankings contradict selected records');
-  }
+  requireThat(issue.sections[0].itemIds.length + issue.sections[1].itemIds.length <= issue.sections[0].qualifyingCount, 'ordinary selection exceeds population');
   for (const [id,item] of Object.entries(issue.items)) {
     requireThat(id === item.id, 'item key/id mismatch');
     requireThat(Date.parse(item.submittedAt) >= start && Date.parse(item.submittedAt) < end, 'submission outside window');
@@ -78,6 +77,8 @@ function allowKeys(value, keys, label) { requireThat(value && Object.keys(value)
 export function adaptLegacyReviewed(legacy, metadata) {
   allowKeys(legacy, ['start','end','sections'], 'legacy root');
   requireThat(metadata.qualifyingCounts?.length === 4, 'explicit qualifyingCounts required');
+  const rankings = metadata.ordinaryRankings;
+  requireThat(Array.isArray(rankings?.score) && Array.isArray(rankings?.comments), 'ordinary ranking evidence required');
   requireThat(legacy.sections?.length === 4, 'four legacy sections required');
   const issue = { schemaVersion:1, issueId:metadata.issueId, revision:metadata.revision ?? 1, scheduledAt:metadata.scheduledAt, collectedAt:metadata.collectedAt, displayTimezone:'Europe/London', window:{start:new Date(legacy.start).toISOString().replace('.000Z','Z'), end:new Date(legacy.end).toISOString().replace('.000Z','Z')}, sections:[], items:{} };
   if (metadata.correction) issue.correction = structuredClone(metadata.correction);
@@ -101,6 +102,10 @@ export function adaptLegacyReviewed(legacy, metadata) {
       issue.items[id] = item; issue.sections[index].itemIds.push(id);
     }
   });
+  const scoreIds = issue.sections[0].itemIds;
+  const expectedScore = rankings.score.slice(0, scoreIds.length);
+  const expectedComments = rankings.comments.filter(id => !scoreIds.includes(id)).slice(0, issue.sections[1].itemIds.length);
+  requireThat(stableJSON(scoreIds) === stableJSON(expectedScore) && stableJSON(issue.sections[1].itemIds) === stableJSON(expectedComments), 'ranking evidence contradicts selected ordinary stories');
   return validateIssue(issue);
 }
 /** Public issue -> existing render_email.py input. Summaries/order/metrics unchanged. */
@@ -127,7 +132,7 @@ export async function loadArchive(dataDir = process.env.TWIHN_DATA_DIR || path.r
     requireThat(current, 'orphan revision directory');
     for (const file of await readdir(path.join(dataDir,'revisions',dir.name),{withFileTypes:true})) {
       requireThat(file.isFile() && /^v[1-9][0-9]*\.json$/.test(file.name), 'unexpected revision path');
-      const old = validateIssue(JSON.parse(await readFile(path.join(dataDir,'revisions',dir.name,file.name),'utf8')));
+      const old = validateIssue(JSON.parse(await readFile(path.join(dataDir,'revisions',dir.name,file.name),'utf8')),{allowOverlappingOrdinary:true});
       requireThat(old.issueId === dir.name && file.name === `v${old.revision}.json` && old.revision < current.revision, 'invalid retained revision identity');
       requireThat(stableJSON(old.window) === stableJSON(current.window) && old.scheduledAt === current.scheduledAt, 'correction changed issue window');
       revisions.push(old);

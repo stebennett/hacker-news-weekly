@@ -46,7 +46,9 @@ def collect_issue(issue):
     ask = sum('ask_hn' in x.get('tags', []) for x in stories)
     selected = json.loads(json.dumps(dict(start=issue.start, end=issue.end,
                          sections=[dict(heading=h, items=items) for h, items in zip(HEADINGS, groups)]), default=str))
-    return selected, [ordinary, ordinary, ask, len(groups[3])]
+    ordinary_stories = [x for x in stories if not {'ask_hn', 'show_hn'}.intersection(x.get('tags', []))]
+    rankings = dict(score=[x['id'] for x in collector.rank(ordinary_stories, 'score')], comments=[x['id'] for x in collector.rank(ordinary_stories, 'comments')])
+    return selected, [ordinary, ordinary, ask, len(groups[3])], rankings
 
 
 def artifacts(folder, issue_id) -> dict:
@@ -76,12 +78,12 @@ def begin(work_root, issue, *, now=None) -> dict:
             return dict(artifacts(folder, issue.issue_id), reused=True)
         if any(folder.iterdir()):
             raise RuntimeError('orphaned collection/research files; recover instead of recollecting')
-        selected, counts = collect_issue(issue)
+        selected, counts, rankings = collect_issue(issue)
         collected_at = now or datetime.now(timezone.utc)
         raw = json_bytes(selected)
         collection = dict(version=1, issueId=issue.issue_id, start=issue.start, end=issue.end,
                           collectedAt=collected_at.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z'),
-                          qualifyingCounts=counts, selectedSha256=digest(raw))
+                          qualifyingCounts=counts, ordinaryRankings=rankings, selectedSha256=digest(raw))
         # The collection commit is written last. An interrupted write is refused,
         # not silently retried with newer metrics under an existing identity.
         atomic(folder / 'selected.json', raw)
@@ -131,7 +133,7 @@ def approve(work_root, state_root, metadata_root, issue, reviewed_path, sources_
             if set(provenance['itemSources']) != selected_ids:
                 raise RuntimeError('source provenance IDs differ from selected review')
             metadata = dict(issueId=issue.issue_id, scheduledAt=issue.end, revision=1,
-                            collectedAt=collection['collectedAt'], qualifyingCounts=collection['qualifyingCounts'],
+                            collectedAt=collection['collectedAt'], qualifyingCounts=collection['qualifyingCounts'], ordinaryRankings=collection['ordinaryRankings'],
                             itemSources=provenance['itemSources'], reviewedSha256=result['reviewedSha256'],
                             selectedSha256=collection['selectedSha256'],
                             collectionSha256=digest((folder / 'collection.json').read_bytes()))

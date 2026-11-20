@@ -27,7 +27,7 @@ python3 integrations/weekly_hn_digest.py \
   --limit 10 --format selected-json > "$HOME/.hermes/data/twihn-selected.json"
 ```
 
-Research **every unique selected item** and add `story` and `discussion` paragraphs. Repeat items must carry identical research/metrics in both independent ordinary rankings. Do not claim an inaccessible source was read; record its availability accurately. Collection and factual research are intentionally outside this deterministic runtime. A human/agent reviewer must approve the completed dataset; validation cannot establish factual truth.
+Research **every unique selected item** and add `story` and `discussion` paragraphs. The score ranking takes precedence; the comments ranking contains only the highest-commented remaining ordinary stories. Do not claim an inaccessible source was read; record its availability accurately. Collection and factual research are intentionally outside this deterministic runtime. A human/agent reviewer must approve the completed dataset; validation cannot establish factual truth.
 
 `prep` freezes the **exact reviewed legacy JSON bytes**, their SHA-256, identity, seven-day bounds, revision, and independent pending channel states:
 
@@ -37,7 +37,7 @@ python3 -m runtime prep --issue 2026-11-13 \
   --reviewed "$HOME/.hermes/data/twihn-reviewed.json" --approve-reviewed
 ```
 
-Default renderer: `integrations/render_email.py`; `prep --renderer /absolute/path.py` can explicitly select a compatible renderer. Input remains the existing `{start,end,sections:[{heading,items:[...]}]}` format. The current compatibility gate deliberately requires ten entries in each first-three section, as the legacy renderer does. A genuinely smaller population currently stops email rather than inventing entries; support for fewer must be added consistently to collector, renderer and runtime. Empty Show HN is supported; there is no maximum Show count.
+Default renderer: `integrations/render_email.py`; `prep --renderer /absolute/path.py` can explicitly select a compatible renderer. Input remains the existing `{start,end,sections:[{heading,items:[...]}]}` format. The score and Ask sections require ten entries; the comments section contains up to ten remaining ordinary stories after score precedence. A genuinely smaller score or Ask population currently stops email rather than inventing entries. Empty Show HN is supported; there is no maximum Show count.
 
 Re-preparing identical bytes is idempotent. Any byte change, changed summaries across rankings, duplicate IDs within a section, invalid order/metrics/window, missing summaries or unsafe legacy URLs is rejected. A whitespace-only change is still a different frozen digest. Revision 1 cannot be silently overwritten; factual corrections use the site's reviewed revision/retention workflow and must **not** reset private email state or cause a resend.
 

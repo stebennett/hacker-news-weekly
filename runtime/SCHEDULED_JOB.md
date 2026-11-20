@@ -42,7 +42,7 @@ The job must already have the Friday cron expression and Europe/London timezone.
 
 ### 2. Research every unique selected ID
 
-Read source pages/original HN text and discussion threads/replies according to the digest skill. Preserve every selected field and order; add only single-paragraph `story` and `discussion` strings. Reuse identical summaries for independent-ranking overlaps. Never silently omit the unbounded 50+ point Show HN section.
+Read source pages/original HN text and discussion threads/replies according to the digest skill. Preserve every selected field and order; add only single-paragraph `story` and `discussion` strings. Score ranking takes precedence, so comments must contain only the highest-commented remaining ordinary stories. Never silently omit the unbounded 50+ point Show HN section.
 
 Save the resulting legacy `reviewed.json` alongside the collection. Create a separate `sources.json` with **exactly** the selected unique IDs:
 

@@ -2,18 +2,19 @@
   "artifacts": {
     "_astro/Issue.BW7Tw3-K.css": "fc871e1a5f95f6371af73b8726bf8bb85f8d16349881b4c22c01b01c640081c5",
     "_headers": "f037095a4f71de0e21de1fb4094f5a7b24ab1210d76c8218962a3381aaeef7aa",
-    "data/index.json": "87b85f7da6dd71d03b50bf6e788537277233d7517f2913d92b54921eec13a634",
-    "data/issues/2026-11-20.json": "2b819d397ca9b2168adfd5775df5d4368c2c990bc6f6f89f7d97b63255432d88",
-    "data/latest.json": "2b819d397ca9b2168adfd5775df5d4368c2c990bc6f6f89f7d97b63255432d88",
-    "index.html": "d78def9e5e1f437313ca1ec9652ef3fd98a13ffea395b32536a816b1f2b90cce",
-    "issues/2026-11-20/index.html": "807a6ff802bff75479f259352caba0d8f8111a3a1fff144a2ef84386143e3107",
-    "schema/issue.schema.json": "23d8ac1186f16d42c1e4e586d1d5ebdd469ecccaeeb2f3ccc1f3f110d5c85f23"
+    "data/index.json": "8a01085e4570cdacbb24c8a95567e30d55de3799d914d27f9145241402c2f57b",
+    "data/issues/2026-11-20.json": "e0d1de097c0b5784c0df9ee0c9f2a5c5bc227336c17ead78d8ba63b8a64eb6a7",
+    "data/latest.json": "e0d1de097c0b5784c0df9ee0c9f2a5c5bc227336c17ead78d8ba63b8a64eb6a7",
+    "data/revisions/2026-11-20/v1.json": "2b819d397ca9b2168adfd5775df5d4368c2c990bc6f6f89f7d97b63255432d88",
+    "index.html": "33398790499f151726357bea82ac46f4212cfb88260c14f763b35ba4a8050013",
+    "issues/2026-11-20/index.html": "9802ce7d35c3429d9bb6275928fc47618d64412cbc2e3b88d282356b23200881",
+    "schema/issue.schema.json": "7d20daaac7fe517281e750d808e75d783708ee83c25a33e76056ee48979d2c61"
   },
   "issues": [
     {
       "issueId": "2026-11-20",
-      "revision": 1,
-      "sha256": "2b819d397ca9b2168adfd5775df5d4368c2c990bc6f6f89f7d97b63255432d88"
+      "revision": 2,
+      "sha256": "e0d1de097c0b5784c0df9ee0c9f2a5c5bc227336c17ead78d8ba63b8a64eb6a7"
     }
   ],
   "schemaVersion": 1,

@@ -1,5 +1,10 @@
 {
   "collectedAt": "2026-11-20T08:02:08.661157Z",
+  "correction": {
+    "correctedAt": "2026-11-20T08:50:25Z",
+    "note": "Removed duplicate ordinary stories from the comments ranking. Score ranking now takes precedence; the comments list contains the next highest-commented stories.",
+    "previousRevision": 1
+  },
   "displayTimezone": "Europe/London",
   "issueId": "2026-11-20",
   "items": {
@@ -731,6 +736,38 @@
       "submittedAt": "2026-11-15T22:48:52Z",
       "title": "Show HN: The Last Complication, a Zachtronics-style watchmaking puzzle game"
     },
+    "50512235": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original article retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 588,
+      "discussion": "Discussion both extended and challenged the founder-versus-executor framing. Commenters debated whether Nvidia should cannibalize its GPU business before rivals do, how custom chips and weaker CUDA lock-in could affect margins, and whether Apple and Microsoft are fair post-founder cautionary examples; unverified speculation about the departure was explicitly contested.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50512235",
+      "id": "50512235",
+      "kind": "story",
+      "score": 485,
+      "sourceUrl": "https://steveblank.com/2026/11/15/whats-next-for-nvidia/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://steveblank.com/2026/11/15/whats-next-for-nvidia/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50512235"
+        }
+      ],
+      "story": "Steve Blank argues that Jensen Huang’s reported departure leaves Nvidia exposed to a founder-to-executor transition. He credits Huang with CUDA, the deep-learning pivot, and integrated AI datacenter systems, and says the board needs a successor able to operate today’s business while repeatedly remaking it as hyperscalers develop their own chips.",
+      "submittedAt": "2026-11-15 23:55:55Z",
+      "title": "What's Next for Nvidia?"
+    },
     "50513451": {
       "availability": {
         "discussion": {
@@ -789,6 +826,38 @@
       "story": "Unref is a Rust-based Python dead-code finder built on Ruff’s parser. Its HN post says it moved from Python to Rust and can check CPython in under a second.",
       "submittedAt": "2026-11-16T13:30:30Z",
       "title": "Show HN: Unref – A Python dead code finder built on Ruff's parser"
+    },
+    "50517488": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original article retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 556,
+      "discussion": "Commenters described misleading sale pricing as a longstanding retail practice and recommended price-history tools, comparison shopping, wishlists, and direct purchases. They also debated disclosure rules and methodology, noting the promoted-item sample and questions about marketplace versus Amazon pricing, while discussing broader complaints and defenses around Amazon’s search, logistics, returns, and Prime.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50517488",
+      "id": "50517488",
+      "kind": "story",
+      "score": 970,
+      "sourceUrl": "http://groundworkcollaborative.org/news/amazons-decoy-deals-groundwork-investigation-reveals-nearly-1-in-3-black-friday-and-cyber-monday-deals-advertised-by-amazon-offered-no-savings-to-shoppers-nearly-1-in-10-w/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "http://groundworkcollaborative.org/news/amazons-decoy-deals-groundwork-investigation-reveals-nearly-1-in-3-black-friday-and-cyber-monday-deals-advertised-by-amazon-offered-no-savings-to-shoppers-nearly-1-in-10-w/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50517488"
+        }
+      ],
+      "story": "Groundwork Collaborative reported that, among more than 350 products featured on Amazon’s Black Friday and Cyber Monday deal pages in 2024 and 2025, 29.1% were priced the same as or higher than at some point in the preceding 30 days and 9.4% cost more during the sale. These are the advocacy group’s price-history findings; it calls for recent-low-price disclosure rules for advertised sales.",
+      "submittedAt": "2026-11-16 13:39:07Z",
+      "title": "Many of Amazon’s Black Friday and Cyber Monday “deals” offered no savings"
     },
     "50517803": {
       "availability": {
@@ -1008,6 +1077,38 @@
       "story": "tamserve is an Apache-2.0 Python serving engine for real-time, multi-camera object tracking using SAM 2, EdgeTAM, and optionally SAM 3 for text prompts. It shares model instances across cameras and dynamically batches work; its README reports lower GPU-memory use and higher aggregate throughput than the model's stock per-camera code in specified EdgeTAM/RTX 4090 benchmarks, while reporting essentially unchanged DAVIS 2017 accuracy.",
       "submittedAt": "2026-11-16T21:14:39Z",
       "title": "Show HN: Open-source, real-time object tracking for live video feeds"
+    },
+    "50524736": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original article retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 624,
+      "discussion": "Commenters debated both the practical case for Linux or reduced reliance on Windows and the significance of the telemetry. Some viewed executable-category logging as unsurprising diagnostics and distinguished local logs from uploaded data; others objected that collection occurs locally before optional upload choices and that categorizing specific AI tools is more intrusive than generic logging.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50524736",
+      "id": "50524736",
+      "kind": "story",
+      "score": 733,
+      "sourceUrl": "https://xusheng.dev/posts/windows-coding-agent-telemetry/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://xusheng.dev/posts/windows-coding-agent-telemetry/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50524736"
+        }
+      ],
+      "story": "The author reverse-engineered Windows 11’s MissionControlAggregator.dll and found telemetry categories for named coding-agent executables, desktop agents, and developer tools. Their testing showed a renamed cmd.exe run as codex.exe set the Codex cohort bit; the article says queued diagnostic data contains categories rather than prompts, source code, or duration-of-use data, and recommends disabling optional diagnostic data to prevent upload.",
+      "submittedAt": "2026-11-16 22:58:20Z",
+      "title": "Windows 11 is collecting data on which coding agents and developer tools you use"
     },
     "50525052": {
       "availability": {
@@ -1232,6 +1333,38 @@
       "story": "Calif described Java4Shell, a remote-code-execution vulnerability affecting some OpenJDK Base64 processing paths. The report set out the affected conditions, proof-of-concept context, and remediation guidance.",
       "submittedAt": "2026-11-17T21:11:28Z",
       "title": "Java4Shell: RCE in OpenJDK when processing Base64"
+    },
+    "50540178": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original article retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 563,
+      "discussion": "The thread debated whether AI answers undermine publishers, hobby communities, and other sources that fund public information, or mainly displace low-value SEO and ad-heavy content. Commenters also discussed copyright, citations, paywalls, revenue sharing, Google’s earlier incentives, and whether search should prioritize direct primary sources; the author acknowledged possible commercial-query bias in one dataset.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50540178",
+      "id": "50540178",
+      "kind": "story",
+      "score": 709,
+      "sourceUrl": "https://revscope.co/blog/search-seo-geo-2026/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://revscope.co/blog/search-seo-geo-2026/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50540178"
+        }
+      ],
+      "story": "RevScope argues that Google AI Overviews reduce outbound clicks, citing a randomized desktop-Chrome experiment in which visible Overviews averaged fewer external clicks and estimating an overall organic-click loss. The article combines that working paper with observational Pew and DataForSEO material, states limitations in the modeling and sampling, and finds little demonstrated value in GEO tactics beyond conventional SEO and reputable third-party presence.",
+      "submittedAt": "2026-11-18 00:17:58Z",
+      "title": "Google's AI answers reducing search traffic by 40%"
     },
     "50542705": {
       "availability": {
@@ -1581,7 +1714,7 @@
       "title": "Anthropic’s Nasdaq debut"
     }
   },
-  "revision": 1,
+  "revision": 2,
   "scheduledAt": "2026-11-20T08:00:00Z",
   "schemaVersion": 1,
   "sections": [
@@ -1604,16 +1737,16 @@
     {
       "id": "comments",
       "itemIds": [
-        "50562754",
-        "50500963",
-        "50489641",
-        "50535230",
         "50553843",
         "50552424",
         "50532849",
         "50484658",
         "50521045",
-        "50542705"
+        "50542705",
+        "50524736",
+        "50512235",
+        "50540178",
+        "50517488"
       ],
       "qualifyingCount": 6220
     },
