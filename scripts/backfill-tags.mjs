@@ -152,7 +152,8 @@ async function prepare(o) {
     }
     const source = await sourceSnapshot(dataDir), archive = await loadMigrationArchive(dataDir);
     const issues = [...archive.issues].sort((a,b) => a.issueId.localeCompare(b.issueId));
-    const input = issues.length ? prepareArchiveTaggingInput(archive,issues.at(-1).issueId) : null;
+    const storyCount = new Set(issues.flatMap(issue => Object.keys(issue.items))).size;
+    const input = storyCount ? prepareArchiveTaggingInput(archive,issues.at(-1).issueId) : null;
     const snapshot = {schemaVersion:1,dataDir,batchSize,source,registry:archive.registry,records:archive.records,input};
     requireThat(same(source,await sourceSnapshot(dataDir)),'Archive changed during prepare');
     // Write-once files only. A crash orphan is refused for human inspection,

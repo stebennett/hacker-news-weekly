@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, readFile, readdir, lstat, rm, chmod, symlink
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { stableJSON } from '../scripts/content.mjs';
+import { stableJSON, validateIssue } from '../scripts/content.mjs';
 import { sha256, loadStoryArchive } from '../scripts/tags.mjs';
 import { taggedFixture, writeTagArchive } from './site-tag-fixtures.mjs';
 
@@ -60,6 +60,7 @@ async function accept(s, label, filename) {
   const r = await response(s,label,filename); ok(cli('accept','--work-dir',s.work,'--response',r.file)); return r;
 }
 const applyArgs = s => ['apply','--data-dir',s.data,'--work-dir',s.work];
+const withoutStories = issue => validateIssue({...issue,items:{},sections:issue.sections.map(section => ({...section,itemIds:[],qualifyingCount:0}))});
 
 test('prepare freezes unique CURRENT inputs, actual canonical archive digest, exact source digests and private modes; repeat is read-only', async t => {
   const s = await setup(t), before = await tree(s.data); ok(cli(...s.prepare));
@@ -149,6 +150,47 @@ test('empty archive completes knowingly without fabricated topics or AI input', 
   const a = await loadStoryArchive(s.data); assert.deepEqual(a.registry.tags,[]); assert.deepEqual(a.records,[]);
 });
 
+for (const missing of [false,true]) test(`zero-story current issue completes without AI output; tag artifacts initially ${missing ? 'absent' : 'present'}`,async t => {
+  const s = await setup(t), issue = withoutStories(s.archive.issues[0]);
+  await writeFile(path.join(s.data,'issues',`${issue.issueId}.json`),` ${JSON.stringify(issue)}\n\n`);
+  if (missing) { await rm(path.join(s.data,'tags.json')); await rm(path.join(s.data,'stories'),{recursive:true}); }
+  const before = await tree(s.data), {main} = await import('../scripts/backfill-tags.mjs');
+  assert.equal(typeof main,'function'); await main(s.prepare);
+  const snapshot = JSON.parse(await readFile(path.join(s.work,'input.json'),'utf8')), p = await progress(s);
+  assert.equal(snapshot.input,null); assert.deepEqual(snapshot.records,[]);
+  assert.deepEqual(snapshot.source.files,Object.fromEntries(Object.entries(before).filter(([,value]) => Object.hasOwn(value,'bytes')).map(([name,value]) => [name,sha256(Buffer.from(value.bytes,'base64'))])));
+  assert.deepEqual(p,{schemaVersion:1,previousSha256:sha256(stableJSON(snapshot)),accepted:null,input:null});
+  assert.deepEqual((await readdir(s.work)).sort(),['input.json','progress-000000.json']);
+  const privateBefore = await tree(s.work);
+  assert.equal((await lstat(s.work)).mode & 0o777,0o700);
+  for (const value of Object.values(privateBefore)) assert.equal(value.mode,0o600);
+  ok(cli(...s.prepare)); assert.deepEqual(await tree(s.work),privateBefore); assert.deepEqual(await tree(s.data),before);
+  ok(cli(...applyArgs(s))); const after = await tree(s.data), archive = await loadStoryArchive(s.data);
+  assert.equal(archive.issues.length,1); assert.deepEqual(archive.issues[0].items,{});
+  assert.equal(archive.revisions.length,1); assert.ok(Object.keys(archive.revisions[0].items).length > 0,'retained stories are not current inputs');
+  assert.deepEqual(archive.registry,{schemaVersion:1,tags:[]}); assert.deepEqual(archive.records,[]); assert.deepEqual(archive.stories,[]);
+  assert.deepEqual(await readdir(path.join(s.data,'stories')),[]); assert.equal(after['tags.json'].mode,0o644);
+  for (const [name,value] of Object.entries(before)) assert.deepEqual(after[name],value,name);
+  ok(cli(...applyArgs(s))); assert.deepEqual(await tree(s.data),after); assert.deepEqual(await tree(s.work),privateBefore);
+});
+
+test('mixed populated and empty current issues retain story coverage and the complete archive binding',async t => {
+  const s = await setup(t), next = withoutStories(structuredClone(s.archive.issues[0]));
+  next.issueId = '2026-11-20'; next.scheduledAt = '2026-11-20T08:00:00Z'; next.collectedAt = '2026-11-20T08:05:00Z';
+  next.window = {start:'2026-11-13T08:00:00Z',end:next.scheduledAt}; next.revision = 1; delete next.correction;
+  validateIssue(next);
+  await writeFile(path.join(s.data,'issues',`${next.issueId}.json`),`\n${JSON.stringify(next)}\n`);
+  const before = await tree(s.data); ok(cli(...s.prepare));
+  const snapshot = JSON.parse(await readFile(path.join(s.work,'input.json'),'utf8'));
+  assert.deepEqual(snapshot.input.stories.map(story => story.id),['1','2']); assert.equal(snapshot.input.issueId,next.issueId);
+  assert.equal(snapshot.input.reviewedSha256,sha256(stableJSON([...s.archive.issues,next])));
+  await accept(s,'Security','one.json'); await accept(s,'Security','two.json'); ok(cli(...applyArgs(s)));
+  const archive = await loadStoryArchive(s.data), after = await tree(s.data);
+  assert.equal(archive.issues.length,2);
+  assert.deepEqual(archive.records.map(record => [record.id,record.issueIds]),[['1',['2026-11-13']],['2',['2026-11-13']]]);
+  for (const name of Object.keys(before).filter(n => /^(issues|revisions)(\/|$)/.test(n))) assert.deepEqual(after[name],before[name],name);
+});
+
 for (const kind of ['work symlink','archive symlink','response symlink','private modes','hardlink checkpoint','nonregular response','work inside archive','work inside repository']) test(`safe filesystem boundary: ${kind}`,async t => {
   const s = await setup(t);
   const {main} = await import('../scripts/backfill-tags.mjs'); assert.equal(typeof main,'function');
@@ -184,6 +226,10 @@ test('offline CLI cannot spawn mail/runtime helpers or perform network I/O',asyn
   const run = args => spawnSync(process.execPath,['--import',guard,'scripts/backfill-tags.mjs',...args],{encoding:'utf8',timeout:15000,env:{...process.env,PATH:bin}});
   ok(run(s.prepare)); const first = await response(s); ok(run(['accept','--work-dir',s.work,'--response',first.file]));
   const second = await response(s,'Security','second.json'); ok(run(['accept','--work-dir',s.work,'--response',second.file])); ok(run(applyArgs(s)));
+  const empty = await setup(t), issue = withoutStories(empty.archive.issues[0]);
+  await writeFile(path.join(empty.data,'issues',`${issue.issueId}.json`),stableJSON(issue));
+  await rm(path.join(empty.data,'tags.json')); await rm(path.join(empty.data,'stories'),{recursive:true});
+  ok(run(empty.prepare)); ok(run(empty.prepare)); ok(run(applyArgs(empty))); ok(run(applyArgs(empty)));
   await assert.rejects(lstat(sentinel),{code:'ENOENT'});
   const source = await readFile('scripts/backfill-tags.mjs','utf8'); assert.doesNotMatch(source,/runtime\/(weekly|delivery|orchestrator)|child_process|https?:|fetch\(/);
 });
