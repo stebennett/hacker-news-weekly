@@ -7,6 +7,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { stableJSON } from '../scripts/content.mjs';
 import * as tags from '../scripts/tags.mjs';
+import { main as taggingMain } from '../scripts/tagging.mjs';
 import { legacy, fixture } from './site-fixtures.mjs';
 import { taggedFixture, writeTagArchive } from './site-tag-fixtures.mjs';
 
@@ -142,10 +143,60 @@ test('CLI validate writes only canonical private candidate, bound to the exact i
   const setup = await runInput(t); success(setup.result);
   const responsePath = path.join(setup.privateDir, 'response.json'), candidate = path.join(setup.privateDir, 'candidate.json');
   await writeFile(responsePath, JSON.stringify(response()));
-  success(cli('validate','--input',setup.output,'--response',responsePath,'--output',candidate));
+  success(cli('validate','--data-dir',setup.dataDir,'--input',setup.output,'--response',responsePath,'--output',candidate));
   assert.equal(await readFile(candidate,'utf8'), stableJSON(validate(JSON.parse(await readFile(setup.output,'utf8')), response())));
   assert.equal((await stat(candidate)).mode & 0o777, 0o600);
-  assert.notEqual(cli('validate','--input',setup.output,'--response',responsePath,'--output',candidate).status, 0, 'refuse overwrite');
+  assert.notEqual(cli('validate','--data-dir',setup.dataDir,'--input',setup.output,'--response',responsePath,'--output',candidate).status, 0, 'refuse overwrite');
+});
+
+for (const relative of ['candidate.json','public/candidate.json','dist/candidate.json']) {
+  test(`CLI validate excludes external archive destination: ${relative}`, async t => {
+    const setup = await runInput(t); success(setup.result);
+    const responsePath = path.join(setup.privateDir,'response.json'), output = path.join(setup.dataDir,relative);
+    await writeFile(responsePath,JSON.stringify(response()));
+    await mkdir(path.dirname(output),{recursive:true,mode:0o700});
+    const args = ['validate','--data-dir',setup.dataDir,'--input',setup.output,'--response',responsePath,'--output',output];
+    // Check the actual containment guard, not a coincidental argument/permission error.
+    await assert.rejects(taggingMain(args), /Candidate must be outside/);
+    const result = cli(...args);
+    assert.equal(result.status,1); assert.equal(result.stdout,'');
+    assert.equal(result.stderr,'Tagging failed; no valid candidate was prepared.\n');
+    await assert.rejects(stat(output),{code:'ENOENT'});
+  });
+}
+
+test('CLI validate requires explicit archive context even for a private output', async t => {
+  const setup = await runInput(t); success(setup.result);
+  const responsePath = path.join(setup.privateDir,'response.json'), output = path.join(setup.privateDir,'candidate.json');
+  await writeFile(responsePath,JSON.stringify(response()));
+  const args = ['validate','--input',setup.output,'--response',responsePath,'--output',output];
+  for (const context of [[],['--data-dir']]) {
+    const result = cli(...args,...context);
+    assert.equal(result.status,1); assert.equal(result.stdout,'');
+    assert.equal(result.stderr,'Tagging failed; no valid candidate was prepared.\n');
+    await assert.rejects(stat(output),{code:'ENOENT'});
+  }
+});
+
+test('CLI validate requires a real nonsymlink archive directory and keeps path failures private', async t => {
+  const setup = await runInput(t); success(setup.result);
+  const responsePath = path.join(setup.privateDir,'response.json'), output = path.join(setup.privateDir,'candidate.json');
+  await writeFile(responsePath,JSON.stringify(response()));
+  const link = path.join(setup.root,'PRIVATE_SENTINEL-link'); await symlink(setup.dataDir,link);
+  const ancestor = path.join(setup.root,'PRIVATE_SENTINEL-ancestor'); await symlink(path.dirname(setup.dataDir),ancestor);
+  for (const [dataDir, error] of [
+    [path.join(setup.root,'PRIVATE_SENTINEL-missing'),{code:'ENOENT'}],
+    [responsePath,/Path must be a regular file or directory/],
+    [link,/Symlink path is not allowed/],
+    [path.join(ancestor,path.basename(setup.dataDir)),/Symlink path is not allowed/],
+  ]) {
+    const args = ['validate','--data-dir',dataDir,'--input',setup.output,'--response',responsePath,'--output',output];
+    await assert.rejects(taggingMain(args),error);
+    const result = cli(...args);
+    assert.equal(result.status,1); assert.equal(result.stdout,'');
+    assert.equal(result.stderr,'Tagging failed; no valid candidate was prepared.\n');
+    await assert.rejects(stat(output),{code:'ENOENT'});
+  }
 });
 
 test('normal input refuses initially untagged production; explicit archive mode allows empty registry migration', async t => {
@@ -218,10 +269,15 @@ test('CLI has strict arguments, bounded files and sanitized errors (never echoed
   const setup = await runInput(t); success(setup.result);
   const bad = path.join(setup.privateDir,'bad.json'), out = path.join(setup.privateDir,'bad-output.json');
   await writeFile(bad, '{PRIVATE_SENTINEL secret');
-  const args = ['validate','--input',setup.output,'--response',bad,'--output',out];
+  const args = ['validate','--data-dir',setup.dataDir,'--input',setup.output,'--response',bad,'--output',out];
   const result = cli(...args); assert.notEqual(result.status,0); assert.doesNotMatch(result.stderr,/PRIVATE_SENTINEL/);
-  assert.notEqual(cli(...args,'--unknown','x').status,0);
-  assert.notEqual(cli(...args,'--output',out).status,0);
+  await writeFile(bad,JSON.stringify(response()));
+  for (const extra of [['--unknown','x'],['--output',out],['--data-dir',setup.dataDir]]) {
+    const invalid = cli(...args,...extra);
+    assert.equal(invalid.status,1); assert.equal(invalid.stdout,'');
+    assert.equal(invalid.stderr,'Tagging failed; no valid candidate was prepared.\n');
+  }
+  await assert.rejects(stat(out),{code:'ENOENT'});
   await writeFile(bad,' '.repeat(16 * 1024 * 1024 + 1));
   const oversized = cli(...args); assert.notEqual(oversized.status,0); assert.match(oversized.stderr,/bound|large|limit/i);
 });

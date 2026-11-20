@@ -46,9 +46,14 @@ node scripts/tagging.mjs input --reviewed /private/reviewed.json \
   --output /private/tagging-work/input.json
 # The AI reads this prompt and input.json, then writes response.json privately.
 node scripts/tagging.mjs validate --input /private/tagging-work/input.json \
+  --data-dir /path/to/production-checkout/data \
   --response /private/tagging-work/response.json \
   --output /private/tagging-work/candidate.json
 ```
+
+Pass the same existing source archive directory as `--data-dir` to both commands.
+Validation requires this context to keep candidates outside that archive; the path
+is not added to the JSON envelope.
 
 Normal preparation fails closed if the production archive has incomplete tags.
 For explicit historical migration only, substitute `--archive` for `--reviewed

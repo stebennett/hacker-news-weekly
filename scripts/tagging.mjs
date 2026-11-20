@@ -158,7 +158,7 @@ export async function writeCandidate(filename, value, forbiddenDirs = []) {
 
 function argumentsFor(argv) {
   const [command,...rest] = argv;
-  const allowed = command === 'input' ? ['--archive','--reviewed','--data-dir','--issue','--output'] : command === 'validate' ? ['--input','--response','--output'] : [];
+  const allowed = command === 'input' ? ['--archive','--reviewed','--data-dir','--issue','--output'] : command === 'validate' ? ['--data-dir','--input','--response','--output'] : [];
   requireThat(allowed.length > 0, 'Usage: node scripts/tagging.mjs input|validate [options]');
   const options = {};
   for (let n = 0; n < rest.length; n++) {
@@ -170,7 +170,7 @@ function argumentsFor(argv) {
       options[key] = rest[++n];
     }
   }
-  const required = command === 'input' ? ['--data-dir','--issue','--output'] : ['--input','--response','--output'];
+  const required = command === 'input' ? ['--data-dir','--issue','--output'] : ['--data-dir','--input','--response','--output'];
   requireThat(required.every(key => options[key]), 'Missing required tagging arguments');
   if (command === 'input') requireThat(Boolean(options['--archive']) !== Boolean(options['--reviewed']), 'Use exactly one of --reviewed or --archive');
   return {command,options};
@@ -184,9 +184,10 @@ export async function main(argv = process.argv.slice(2)) {
     const input = o['--archive'] ? prepareArchiveTaggingInput(archive,o['--issue']) : prepareTaggingInput(await readPrivateJSONBytes(o['--reviewed']),archive,o['--issue']);
     await writeCandidate(o['--output'],input,[o['--data-dir']]);
   } else {
+    const dataDir = await noSymlinks(o['--data-dir'],true);
     const input = parseJSON(await readPrivateJSONBytes(o['--input']));
     const response = parseJSON(await readPrivateJSONBytes(o['--response']));
-    await writeCandidate(o['--output'],validateTagging(input,response));
+    await writeCandidate(o['--output'],validateTagging(input,response),[dataDir]);
   }
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
