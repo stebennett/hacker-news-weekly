@@ -14,6 +14,7 @@ import subprocess
 import sys
 from zoneinfo import ZoneInfo
 
+from . import tagging
 from .orchestrator import (Issue, RuntimeError, Store, atomic, digest, instant,
                            json_bytes, load_module, secure_directory, validate_review)
 
@@ -105,7 +106,8 @@ def selected_parity(selected, reviewed):
         raise RuntimeError('research changed collected IDs, ordering, metrics, URLs, tags or bounds')
 
 
-def approve(work_root, state_root, metadata_root, issue, reviewed_path, sources_path, *, approved=False):
+def approve(work_root, state_root, metadata_root, issue, reviewed_path, sources_path, *,
+            approved=False, tagging_path=None):
     if not approved:
         raise RuntimeError('explicit --approve-reviewed required after grounded source research')
     work = Store(work_root)
@@ -125,22 +127,35 @@ def approve(work_root, state_root, metadata_root, issue, reviewed_path, sources_
         error = None
         metadata_file = Path(metadata_root).expanduser().absolute() / f'{issue.issue_id}.json'
         try:
+            tagging.private_path(metadata_file)
             secure_directory(metadata_root)
+            if tagging_path is None:
+                raise RuntimeError('tagging sidecar required for website preparation')
             provenance = json.loads(Path(sources_path).read_bytes()) if sources_path else None
             if not isinstance(provenance, dict) or set(provenance) != {'itemSources'}:
                 raise RuntimeError('sources must contain only explicit itemSources')
             selected_ids = {item['id'] for group in reviewed['sections'] for item in group['items']}
             if set(provenance['itemSources']) != selected_ids:
                 raise RuntimeError('source provenance IDs differ from selected review')
+            # Snapshot once, after freezing the exact parity-validated review.
+            # Never reread either mutable source when binding or writing bytes.
+            tag_raw = tagging.read_private_bytes(tagging_path)
+            tagging.validate_tagging(tag_raw, issue, result['reviewedSha256'], selected_ids)
+            frozen_tagging = tagging.private_path(state.issue_dir(issue.issue_id) / 'tagging.json')
             metadata = dict(issueId=issue.issue_id, scheduledAt=issue.end, revision=1,
                             collectedAt=collection['collectedAt'], qualifyingCounts=collection['qualifyingCounts'], ordinaryRankings=collection['ordinaryRankings'],
                             itemSources=provenance['itemSources'], reviewedSha256=result['reviewedSha256'],
                             selectedSha256=collection['selectedSha256'],
-                            collectionSha256=digest((folder / 'collection.json').read_bytes()))
+                            collectionSha256=digest((folder / 'collection.json').read_bytes()),
+                            taggingPath=str(frozen_tagging), taggingSha256=digest(tag_raw))
             meta_raw = json_bytes(metadata)
-            if metadata_file.exists() and metadata_file.read_bytes() != meta_raw:
-                raise RuntimeError('public provenance already frozen; cannot overwrite on retry')
-            if not metadata_file.exists():
+            committed = metadata_file.exists()
+            if committed and tagging.read_private_bytes(metadata_file) != meta_raw:
+                raise RuntimeError('website provenance/tagging already frozen; cannot overwrite on retry')
+            tagging.freeze(frozen_tagging, tag_raw, committed=committed)
+            # Commit marker last. A crash between these writes leaves an orphan
+            # sidecar that must be explicitly recovered, never overwritten.
+            if not committed:
                 atomic(metadata_file, meta_raw)
         except (ValueError, OSError, TypeError, RuntimeError) as exc:
             error = str(exc)
@@ -188,6 +203,7 @@ def main(argv=None):
             command.add_argument('--metadata-root', type=Path, required=True)
             command.add_argument('--reviewed', type=Path, required=True)
             command.add_argument('--sources', type=Path)
+            command.add_argument('--tagging', type=Path)
             command.add_argument('--approve-reviewed', action='store_true')
     args = parser.parse_args(argv)
     try:
@@ -201,7 +217,8 @@ def main(argv=None):
                 result = begin(args.work_root, issue)
             else:
                 result = approve(args.work_root, args.state_root, args.metadata_root, issue,
-                                 args.reviewed, args.sources, approved=args.approve_reviewed)
+                                 args.reviewed, args.sources, approved=args.approve_reviewed,
+                                 tagging_path=args.tagging)
         print(json.dumps(result)); return 0
     except Exception as exc:
         print(f'twihn weekly: {exc}', file=sys.stderr); return 2
