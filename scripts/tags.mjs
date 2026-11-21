@@ -5,8 +5,11 @@ import path from 'node:path';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 
-const registrySchema = JSON.parse(await readFile(path.resolve('schema/tags.schema.json'), 'utf8'));
-const storySchema = JSON.parse(await readFile(path.resolve('schema/story.schema.json'), 'utf8'));
+// Keep the exact once-read bytes used for AJV compilation private.
+const registrySchemaBytes = await readFile(path.resolve('schema/tags.schema.json'));
+const storySchemaBytes = await readFile(path.resolve('schema/story.schema.json'));
+const registrySchema = JSON.parse(registrySchemaBytes.toString('utf8'));
+const storySchema = JSON.parse(storySchemaBytes.toString('utf8'));
 const ajv = new Ajv({allErrors:true,strict:true});
 addFormats(ajv);
 const registryStructural = ajv.compile(registrySchema);
@@ -16,6 +19,11 @@ const storyIdStructural = ajv.compile(storySchema.properties.id);
 const tagSlugsStructural = ajv.compile(storySchema.properties.tagSlugs);
 const submittedAtStructural = ajv.compile({type:'string',format:'date-time',pattern:'Z$'});
 const requireThat = (condition, message) => { if (!condition) throw new Error(message); };
+
+// Each caller owns its copies; exported buffers cannot mutate the snapshots.
+export function tagSchemaSourceBytes() {
+  return {tags:Buffer.from(registrySchemaBytes),story:Buffer.from(storySchemaBytes)};
+}
 
 export function normalizeLabel(label) {
   requireThat(labelStructural(label), `Invalid tag label: ${ajv.errorsText(labelStructural.errors)}`);

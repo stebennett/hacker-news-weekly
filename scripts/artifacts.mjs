@@ -2,7 +2,7 @@ import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { stableJSON, schema } from './content.mjs';
-import { loadStoryArchive, tagArchivePages } from './tags.mjs';
+import { loadStoryArchive, tagArchivePages, tagSchemaSourceBytes } from './tags.mjs';
 export const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 export async function inventory(root, prefix='') {
   const files = [];
@@ -18,7 +18,7 @@ export async function expectedData(dataDir) {
   const {sourceBytes,...archive} = await loadStoryArchive(dataDir,{includeSourceBytes:true});
   const {issues,revisions,registry,records,stories} = archive;
   const data = {'data/index.json':stableJSON(issues.map(x => ({issueId:x.issueId,revision:x.revision,scheduledAt:x.scheduledAt,url:`/issues/${x.issueId}/`,dataUrl:`/data/issues/${x.issueId}.json`}))),'data/latest.json':stableJSON(issues[0] ?? null),'schema/issue.schema.json':stableJSON(schema),'data/tags.json':sourceBytes.registry};
-  for (const name of ['tags','story']) data[`schema/${name}.schema.json`] = stableJSON(JSON.parse(await readFile(`schema/${name}.schema.json`,'utf8')));
+  for (const [name,bytes] of Object.entries(tagSchemaSourceBytes())) data[`schema/${name}.schema.json`] = bytes;
   for (const record of records) data[`data/stories/${record.id}.json`] = sourceBytes.records.get(record.id);
   for (const issue of issues) data[`data/issues/${issue.issueId}.json`] = stableJSON(issue);
   for (const issue of revisions) data[`data/revisions/${issue.issueId}/v${issue.revision}.json`] = stableJSON(issue);

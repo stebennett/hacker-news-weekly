@@ -149,18 +149,31 @@ test('real static tag routes serve all 41 unique stories in 20/20/1 pages with e
   try {
     process.env.TWIHN_DATA_DIR=data; process.env.TWIHN_SOURCE_REVISION='tag-route-fixture';
     await verifyDist(dist);
-    await t.test('complete canonical public JSON and schema exports are inventoried',async()=>{
+    await t.test('complete source-byte public JSON and schema exports are inventoried',async st=>{
       const manifest=JSON.parse(await readFile(path.join(dist,'build-manifest.json'),'utf8'));
       for (const name of ['tags.json',...archive.records.map(record=>`stories/${record.id}.json`)]) {
         assert.equal(await readFile(path.join(dist,'data',name),'utf8'),await readFile(path.join(data,name),'utf8'));
         assert.equal(await get(`/data/${name}`),await readFile(path.join(data,name),'utf8'),'served public record parity');
         assert.ok(manifest.artifacts[`data/${name}`]);
       }
-      for (const name of ['tags','story']) {
-        assert.equal(await readFile(path.join(dist,`schema/${name}.schema.json`),'utf8'),stableJSON(JSON.parse(await readFile(`schema/${name}.schema.json`,'utf8'))));
-        assert.equal(await get(`/schema/${name}.schema.json`),stableJSON(JSON.parse(await readFile(`schema/${name}.schema.json`,'utf8'))),'served public schema parity');
+      for (const name of ['tags','story']) await st.test(`raw source/export schema parity for ${name}`,async()=>{
+        const source=await readFile(`schema/${name}.schema.json`);
+        assert.deepEqual(await readFile(path.join(dist,`schema/${name}.schema.json`)),source);
+        assert.deepEqual(Buffer.from(await get(`/schema/${name}.schema.json`)),source,'served public schema byte parity');
         assert.ok(manifest.artifacts[`schema/${name}.schema.json`]);
-      }
+      });
+      assert.equal(await readFile(path.join(dist,'schema/issue.schema.json'),'utf8'),stableJSON(JSON.parse(await readFile('schema/issue.schema.json','utf8'))),'original issue schema retains its canonical export contract');
+    });
+    for (const name of ['tags','story']) await t.test(`reject canonicalized ${name} schema with fresh manifest`,async()=>{
+      const target=path.join(dist,`schema/${name}.schema.json`), original=await readFile(target);
+      const source=await readFile(`schema/${name}.schema.json`), canonical=stableJSON(JSON.parse(source.toString('utf8')));
+      assert.notDeepEqual(Buffer.from(canonical),source,'source schema formatting is not canonical');
+      assert.equal(typeof verifyDist,'function');
+      try {
+        await writeFile(target,canonical);
+        await writeFile(path.join(dist,'build-manifest.json'),stableJSON(await makeManifest(dist,'tag-route-fixture',resolved.issues)));
+        await assert.rejects(verifyDist(dist),new RegExp(String.raw`data parity schema/${name}\.schema\.json`));
+      } finally {await writeFile(target,original);}
     });
     for (const name of ['data/tags.json',`data/stories/${archive.expected[0]}.json`,'schema/tags.schema.json','schema/story.schema.json']) await t.test(`reject forged ${name} with fresh manifest`,async()=>{
       const target=path.join(dist,name), original=await readFile(target,'utf8');
@@ -307,42 +320,55 @@ test('real build preserves historical tag/story source bytes and rejects canonic
   }
 });
 
-test('expectedData exports each once-read validated snapshot even if tag/story files change after reading', async t=>{
+test('expectedData exports once-read validated tag/story/schema snapshots despite source changes and caller mutation', async t=>{
   const {data,archive}=await noncanonicalArchive(t), dist=path.join(data,'snapshot-output');
+  const root=await isolatedBuildRoot(data);
   const names=['tags.json',...archive.records.map(record=>`stories/${record.id}.json`)];
   const script=`import assert from 'node:assert/strict';
     import fs from 'node:fs/promises';
     import path from 'node:path';
     import {syncBuiltinESMExports} from 'node:module';
     const data=${JSON.stringify(data)}, dist=${JSON.stringify(dist)};
-    const readFile=fs.readFile, counts=new Map(), originals=new Map();
-    for (const name of ${JSON.stringify(names)}) {
-      const file=path.join(data,name);
+    const readFile=fs.readFile, counts=new Map(), originals=new Map(), sources=new Map();
+    for (const name of ${JSON.stringify(names)}) sources.set('data/'+name,path.join(data,name));
+    for (const name of ['tags','story']) sources.set('schema/'+name+'.schema.json',path.resolve('schema/'+name+'.schema.json'));
+    for (const [name,file] of sources) {
       counts.set(file,0); originals.set(name,await readFile(file));
     }
     fs.readFile=async (file,...args)=>{
       const bytes=await readFile(file,...args);
-      if (counts.has(file)) {
-        counts.set(file,counts.get(file)+1);
-        await fs.writeFile(file,'{"not":"valid public data"}');
+      const source=typeof file==='string' ? path.resolve(file) : file;
+      if (counts.has(source)) {
+        counts.set(source,counts.get(source)+1);
+        await fs.writeFile(source,'{"not":"valid public data"}');
       }
       return bytes;
     };
     syncBuiltinESMExports();
     const {expectedData,exportData}=await import('./scripts/artifacts.mjs');
+    const {validateRegistry,validateStoryRecord}=await import('./scripts/tags.mjs');
     assert.equal(typeof expectedData,'function'); assert.equal(typeof exportData,'function');
+    assert.equal(typeof validateRegistry,'function'); assert.equal(typeof validateStoryRecord,'function');
     const expected=await expectedData(data);
     assert.deepEqual(expected.registry,${JSON.stringify(archive.registry)});
     assert.deepEqual([...expected.records].sort((a,b)=>a.id.localeCompare(b.id)),${JSON.stringify([...archive.records].sort((a,b)=>a.id.localeCompare(b.id)))});
+    assert.throws(()=>validateRegistry({schemaVersion:2,tags:[]}),/Invalid tag registry schema/);
+    assert.throws(()=>validateStoryRecord({...expected.records[0],schemaVersion:2},expected.registry),/Invalid story record schema/);
     assert.equal(Object.hasOwn(expected,'sourceBytes'),false,'byte context stays out of artifact metadata');
     await exportData(dist,expected);
     for (const [name,bytes] of originals) {
-      assert.deepEqual(Buffer.from(expected.data['data/'+name]),bytes,'expectedData uses the validated original bytes: '+name);
-      assert.deepEqual(await readFile(path.join(dist,'data',name)),bytes,'exportData reuses the validated snapshot: '+name);
-      assert.equal(counts.get(path.join(data,name)),1,'read each registry/story source exactly once: '+name);
-      assert.equal(await readFile(path.join(data,name),'utf8'),'{"not":"valid public data"}','source changed at the read boundary');
-    }`;
-  const result=spawnSync(process.execPath,['--input-type=module','-e',script],{encoding:'utf8',timeout:15000});
+      assert.deepEqual(Buffer.from(expected.data[name]),bytes,'expectedData uses the validated original bytes: '+name);
+      assert.deepEqual(await readFile(path.join(dist,name)),bytes,'exportData reuses the validated snapshot: '+name);
+      assert.equal(counts.get(sources.get(name)),1,'read each registry/story/schema source exactly once: '+name);
+      assert.equal(await readFile(sources.get(name),'utf8'),'{"not":"valid public data"}','source changed at the read boundary');
+    }
+    // A caller can alter its own output buffers, never the private schema snapshots.
+    for (const name of ['tags','story']) expected.data['schema/'+name+'.schema.json'].fill(0);
+    fs.readFile=readFile; syncBuiltinESMExports();
+    for (const [name,file] of sources) if (name.startsWith('data/')) await fs.writeFile(file,originals.get(name));
+    const next=await expectedData(data);
+    for (const name of ['tags','story']) assert.deepEqual(next.data['schema/'+name+'.schema.json'],originals.get('schema/'+name+'.schema.json'),'caller mutation cannot change schema bytes or force rereads');`;
+  const result=spawnSync(process.execPath,['--input-type=module','-e',script],{cwd:root,encoding:'utf8',timeout:15000});
   assert.equal(result.status,0,result.stdout+result.stderr);
 });
 
