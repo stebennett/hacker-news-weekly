@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { isolatedBuildRoot, runBuild } from './site-artifact-fixtures.mjs';
 import { createServer } from 'node:http';
@@ -9,7 +9,7 @@ import { fixture } from './site-fixtures.mjs';
 import { recordsFor, writeTagArchive } from './site-tag-fixtures.mjs';
 import { validateIssue, stableJSON } from '../scripts/content.mjs';
 import { loadStoryArchive } from '../scripts/tags.mjs';
-import { inventory, makeManifest } from '../scripts/artifacts.mjs';
+import { expectedData, inventory, makeManifest } from '../scripts/artifacts.mjs';
 import { verifyDist } from '../scripts/verify-dist.mjs';
 
 const escape = text => text.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -273,11 +273,84 @@ test('real static tag routes serve all 41 unique stories in 20/20/1 pages with e
   }
 });
 
+// All payloads are inert test data. The final JSON.parse value still passes
+// schemas, but the discarded earlier bytes must never reach a public export.
+const duplicateSource = (original, key, variant) => {
+  const name=variant==='escaped' ? `\\u${key.charCodeAt(0).toString(16).padStart(4,'0')}${key.slice(1)}` : key;
+  const hidden=variant==='nested' ? '{"hidden":{"note":"TEST_ONLY","note":null}}'
+    : variant==='array' ? '[{"note":"TEST_ONLY","n\\u006fte":null}]'
+    : '{"unexpected":"TEST_ONLY"}';
+  return original.replace('{',`{"${name}":${hidden},`);
+};
+
+async function assertDuplicatePreflight(t, {data,root,dist}) {
+  await mkdir(dist);
+  const sentinel=path.join(dist,'sentinel.txt');
+  await writeFile(sentinel,'must survive duplicate JSON preflight');
+  for (const command of ['check','build','fresh build']) await t.test(command,async()=>{
+    const output=command==='fresh build' ? `${dist}-fresh` : dist;
+    const result=spawnSync(command==='check' ? 'npm' : process.execPath,command==='check'
+      ? ['run','check'] : ['scripts/build.mjs'],{
+      cwd:root,encoding:'utf8',timeout:60000,
+      env:{...process.env,TWIHN_DATA_DIR:data,TWIHN_OUT_DIR:output}
+    });
+    assert.notEqual(result.status,0,'duplicate-bearing raw source must fail preflight');
+    assert.match(result.stdout+result.stderr,/Duplicate JSON property name/);
+    assert.doesNotMatch(result.stdout+result.stderr,/TEST_ONLY/,'diagnostics never echo discarded source values');
+    assert.deepEqual(await inventory(dist),['sentinel.txt'],'no public artifact written or existing output cleared');
+    assert.equal(await readFile(sentinel,'utf8'),'must survive duplicate JSON preflight');
+    await assert.rejects(lstat(`${dist}-fresh`),{code:'ENOENT'},'failed preflight must not create fresh output');
+  });
+}
+
+for (const [name,key] of [['tags.json','tags'],['stories/2.json','tagSlugs']]) {
+  for (const variant of ['outer','escaped','nested','array']) test(`duplicate JSON source ${name}: ${variant}`,{timeout:180000},async t=>{
+    const data=await writeTagArchive(t), dist=path.join(data,'output');
+    assert.equal(typeof loadStoryArchive,'function'); assert.equal(typeof expectedData,'function');
+    await loadStoryArchive(data); await expectedData(data); // Valid controls before editing actual source files.
+    const target=path.join(data,name), original=await readFile(target,'utf8');
+    const changed=duplicateSource(original,key,variant);
+    assert.deepEqual(JSON.parse(changed),JSON.parse(original),'ordinary JSON.parse loses the unvalidated bytes');
+    await writeFile(target,changed);
+    const root=await isolatedBuildRoot(data);
+    await assertDuplicatePreflight(t,{data,root,dist});
+    await t.test('default loader and captured export reject the same bytes',async()=>{
+      await assert.rejects(loadStoryArchive(data),/Duplicate JSON property name/);
+      await assert.rejects(expectedData(data),/Duplicate JSON property name/);
+    });
+    assert.equal(await readFile(target,'utf8'),changed,'rejection does not rewrite source');
+  });
+}
+
+for (const name of ['tags','story']) for (const variant of ['outer','escaped','nested']) {
+  test(`duplicate JSON schema ${name}: ${variant}`,{timeout:180000},async t=>{
+    const data=await writeTagArchive(t), dist=path.join(data,'output');
+    await loadStoryArchive(data); await expectedData(data);
+    const root=await isolatedBuildRoot(data), target=path.join(root,`schema/${name}.schema.json`);
+    const original=await readFile(target,'utf8'), changed=duplicateSource(original,'properties',variant);
+    assert.deepEqual(JSON.parse(changed),JSON.parse(original),'AJV would see only the final properties value');
+    await writeFile(target,changed);
+    await t.test('reject before any AJV compilation',()=>{
+      const result=spawnSync(process.execPath,['--input-type=module','-e',`
+        import Ajv from 'ajv';
+        await import('./scripts/content.mjs'); // Original issue schema is outside this fix.
+        Ajv.prototype.compile=()=>{throw new Error('AJV_COMPILE_REACHED');};
+        await import('./scripts/tags.mjs');
+      `],{cwd:root,encoding:'utf8',timeout:15000});
+      assert.notEqual(result.status,0);
+      assert.match(result.stdout+result.stderr,/Duplicate JSON property name/);
+      assert.doesNotMatch(result.stdout+result.stderr,/AJV_COMPILE_REACHED|TEST_ONLY/);
+    });
+    await assertDuplicatePreflight(t,{data,root,dist});
+    assert.equal(await readFile(target,'utf8'),changed,'rejection does not rewrite schema source');
+  });
+}
+
 async function noncanonicalArchive(t) {
   const data=await writeTagArchive(t), archive=await loadStoryArchive(data);
   const record=archive.records.find(record=>record.id==='2');
   const raw={
-    'tags.json':Buffer.from(` \r\n${JSON.stringify({tags:archive.registry.tags,schemaVersion:1},null,'\t')}\r\n\r\n`),
+    'tags.json':Buffer.from(` \r\n${JSON.stringify({tags:archive.registry.tags,schemaVersion:1},null,'\t').replace('"AI"','"\\u0041\\u0049"').replace('"tags"','"t\\u0061gs"')}\r\n\r\n`),
     'stories/2.json':Buffer.from(`\t${JSON.stringify({issueIds:record.issueIds,tagSlugs:record.tagSlugs,id:record.id,schemaVersion:1})}\n\n`)
   };
   for (const [name,bytes] of Object.entries(raw)) {

@@ -4,12 +4,13 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import { parseStrictJSON } from './strict-json.mjs';
 
 // Keep the exact once-read bytes used for AJV compilation private.
 const registrySchemaBytes = await readFile(path.resolve('schema/tags.schema.json'));
 const storySchemaBytes = await readFile(path.resolve('schema/story.schema.json'));
-const registrySchema = JSON.parse(registrySchemaBytes.toString('utf8'));
-const storySchema = JSON.parse(storySchemaBytes.toString('utf8'));
+const registrySchema = parseStrictJSON(registrySchemaBytes);
+const storySchema = parseStrictJSON(storySchemaBytes);
 const ajv = new Ajv({allErrors:true,strict:true});
 addFormats(ajv);
 const registryStructural = ajv.compile(registrySchema);
@@ -288,7 +289,7 @@ export async function loadStoryArchive(dataDir = process.env.TWIHN_DATA_DIR || p
   requireThat((await lstat(registryPath)).isFile(), 'tag registry path must be a regular file');
   // Validate from the same once-read bytes used by artifact export/parity checks.
   const registryBytes = await readFile(registryPath);
-  const registry = validateRegistry(JSON.parse(registryBytes.toString('utf8')));
+  const registry = validateRegistry(parseStrictJSON(registryBytes));
   const sourceBytes = includeSourceBytes ? {registry:registryBytes,records:new Map()} : undefined;
   const storiesDir = path.join(dataDir, 'stories');
   requireThat((await lstat(storiesDir)).isDirectory(), 'stories path must be a regular directory');
@@ -297,7 +298,7 @@ export async function loadStoryArchive(dataDir = process.env.TWIHN_DATA_DIR || p
     // The negative lookahead anchors the absolute end, unlike $ before a newline.
     requireThat(entry.isFile() && /^[1-9][0-9]*\.json(?![\s\S])/u.test(entry.name), `unexpected story path: ${entry.name}`);
     const bytes = await readFile(path.join(storiesDir, entry.name));
-    const record = validateStoryRecord(JSON.parse(bytes.toString('utf8')), registry);
+    const record = validateStoryRecord(parseStrictJSON(bytes), registry);
     requireThat(entry.name === `${record.id}.json`, `filename/story ID mismatch: ${entry.name}`);
     records.push(record);
     if (sourceBytes) sourceBytes.records.set(record.id,bytes);
