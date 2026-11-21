@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -25,7 +26,7 @@ from urllib.parse import quote, urlencode
 
 from .github_api import GitHub, GitHubError, repository
 from .orchestrator import Issue, RuntimeError, atomic, digest, instant, secure_directory
-from .site_verify import parity
+from .site_verify import parity, strict_json
 from . import tagging
 
 SHA = re.compile(r'[0-9a-f]{40}')
@@ -213,7 +214,7 @@ class Publisher:
         if response.get('type') != 'file' or response.get('encoding') != 'base64':
             raise RuntimeError('exact GitHub file readback missing')
         raw = base64.b64decode(response['content'])
-        expected = __import__('hashlib').sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+        expected = hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
         if response.get('sha') != expected:
             raise RuntimeError('GitHub blob checksum mismatch')
         return raw
@@ -221,9 +222,32 @@ class Publisher:
     def current(self):
         return sha(self.api('GET', '/commits/main')['sha'])
 
+    def capture_tagging(self):
+        # Called only after the authoritative Node archive/diff validator. Include
+        # reused records and the unchanged registry too, not just PR diff paths.
+        paths=['data/tags.json',*[f'data/stories/{ident}.json' for ident in sorted(self.selected_ids)]]
+        snapshot={}
+        for path in paths:
+            raw=(self.cwd/path).read_bytes()
+            strict_json(raw)
+            public='dist/'+path
+            if (self.cwd/public).read_bytes()!=raw:
+                raise RuntimeError('validated source/public tagging blob differs')
+            for name in (path,public):
+                blob=hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
+                if name in getattr(self,'blobs',{}) and self.blobs[name]!=blob:
+                    raise RuntimeError('staged tagging blob differs from validated snapshot')
+                snapshot[name]=raw
+        self.tag_bytes=snapshot
+
     def verify_issue(self, commit, expected):
+        if not getattr(self,'tag_bytes',None):
+            raise RuntimeError('validated tagging snapshot required for content readback')
+        for path,raw in self.tag_bytes.items():
+            if self.content(commit,path)!=raw:
+                raise RuntimeError('production tagging blob differs from validated committed snapshot: '+path)
         for path in (f'data/issues/{self.issue}.json', f'dist/data/issues/{self.issue}.json'):
-            value = json.loads(self.content(commit, path))
+            value = strict_json(self.content(commit, path))
             parity(value, self.context)
             if value != expected:
                 raise RuntimeError('canonical public metadata/content differs from frozen import')
@@ -277,6 +301,7 @@ class Publisher:
             # exact production tag artifact readback is a separate verification gate.
             self.verify_tagging_copy(frozen_tagging)
             self.run([*validate_tags, '--idempotent'])
+            self.capture_tagging()
             self.verify_issue(self.base, expected)
             return expected, True
         destination.write_bytes(generated.read_bytes())
@@ -308,6 +333,7 @@ class Publisher:
         self.run(validate_tags)
         self.verify_tagging_copy(frozen_tagging)
         self.git('diff', '--exit-code', '--')
+        self.capture_tagging()
         self.git('-c', 'user.name=TWIHN publisher', '-c', 'user.email=publisher@users.noreply.github.com',
                  '-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '-m', f'content: weekly issue {self.issue}')
         self.head = sha(self.git('rev-parse', 'HEAD').decode().strip())

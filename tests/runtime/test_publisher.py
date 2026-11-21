@@ -385,11 +385,77 @@ class PublisherTests(unittest.TestCase):
 
     def test_exact_canonical_and_metadata_readback(self):
         value = copy.deepcopy(self.public)
+        self.publisher.tag_bytes={'data/tags.json':json.dumps(value).encode()}
         with patch.object(self.publisher, 'content', return_value=json.dumps(value).encode()):
             self.publisher.verify_issue(BASE, self.public)
         value['collectedAt'] = '2026-11-13T09:00:00Z'
         with patch.object(self.publisher, 'content', return_value=json.dumps(value).encode()), self.assertRaises(RuntimeError):
             self.publisher.verify_issue(BASE, self.public)
+
+    def test_exact_registry_and_selected_story_readback_includes_reused_records(self):
+        p=self.publisher
+        expected={'data/tags.json':b'{"schemaVersion":1,"tags":[{"slug":"ai","label":"AI"}]}',
+                  **{f'data/stories/{ident}.json':json.dumps(dict(schemaVersion=1,id=ident,tagSlugs=['ai'],issueIds=['2026-11-13'])).encode() for ident in p.selected_ids}}
+        p.tag_bytes={path:raw for source,raw in expected.items() for path in (source,'dist/'+source)}
+        issue_raw=json.dumps(self.public).encode();seen=[]
+        def content(commit,path):
+            self.assertEqual(commit,MERGED);seen.append(path)
+            return p.tag_bytes.get(path,issue_raw)
+        self.assertTrue(callable(p.verify_issue))
+        with patch.object(p,'content',side_effect=content):p.verify_issue(MERGED,self.public)
+        self.assertTrue(set(p.tag_bytes)<=set(seen))
+        # Same JSON meaning is not the exact blob that was validated/committed.
+        for wrong in ('data/tags.json','dist/data/tags.json','data/stories/1.json','dist/data/stories/1.json'):
+            def changed(commit,path):return content(commit,path)+(b' ' if path==wrong else b'')
+            with self.subTest(path=wrong),patch.object(p,'content',side_effect=changed),self.assertRaisesRegex(RuntimeError,'tagging blob differs'):
+                p.verify_issue(MERGED,self.public)
+
+    def test_readback_without_validated_tag_snapshot_fails_closed(self):
+        with patch.object(self.publisher,'content',return_value=json.dumps(self.public).encode()),self.assertRaisesRegex(RuntimeError,'tagging snapshot'):
+            self.publisher.verify_issue(MERGED,self.public)
+
+    def test_actual_post_merge_readback_checks_committed_tags_before_content_result(self):
+        original_prepare=self.prepare
+        tagged={'data/tags.json':json.dumps(dict(schemaVersion=1,tags=[dict(slug='ai',label='AI'),dict(slug='security',label='Security')])).encode(),
+                **{f'data/stories/{ident}.json':json.dumps(dict(schemaVersion=1,id=ident,tagSlugs=['ai','security'],issueIds=[self.context['issueId']])).encode() for ident in self.publisher.selected_ids}}
+        expected={path:raw for source,raw in tagged.items() for path in (source,'dist/'+source)}
+        self.paths+=['data/tags.json','data/stories/1.json','dist/data/tags.json','dist/data/stories/1.json']
+        for path in self.paths:
+            raw=expected.get(path,b'not a tag')
+            self.blobs[path]=hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
+        def prepare(root):
+            result=original_prepare(root);self.publisher.tag_bytes=dict(expected);return result
+        corrupt=[None];reads=[]
+        old_api=self.api
+        def api(method,path,payload=None):
+            if path.startswith('/contents/'):
+                name,commit=path.removeprefix('/contents/').split('?ref=');reads.append((commit,name))
+                raw=expected.get(name,json.dumps(self.public).encode())
+                if commit==MERGED and name==corrupt[0]:raw+=b' '
+                blob=hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
+                return dict(type='file',encoding='base64',sha=blob,content=base64.b64encode(raw).decode())
+            return old_api(method,path,payload)
+        self.assertTrue(callable(self.publisher.verify_issue))
+        for wrong in (None,'data/tags.json','data/stories/1.json','dist/data/stories/1.json'):
+            self.merged=False;self.calls=[];reads=[];corrupt[0]=wrong
+            with self.subTest(path=wrong),patch.object(self.publisher,'prepare',side_effect=prepare),patch.object(self.publisher,'git',side_effect=self.git),patch.object(self.publisher,'api',side_effect=api):
+                if wrong:
+                    with self.assertRaisesRegex(RuntimeError,'tagging blob differs'):
+                        self.publisher.publish()
+                    self.assertTrue(self.merged,'post-merge failure must not claim a content result')
+                else:
+                    self.assertEqual(self.publisher.publish(),{'commit':MERGED})
+                    self.assertTrue({(MERGED,path) for path in expected}<=set(reads))
+                    self.assertTrue({(HEAD,path) for path in expected}<=set(reads))
+
+    def test_capture_tagging_binds_changed_bytes_to_the_staged_blob_not_only_worktree(self):
+        (_,exists),_,_=self.prepared_fixture()
+        self.assertFalse(exists)
+        p=self.publisher;path='data/stories/1.json'
+        self.assertEqual(p.tag_bytes[path],p.tag_bytes['dist/'+path])
+        p.blobs[path]='f'*40
+        with self.assertRaisesRegex(RuntimeError,'staged tagging blob'):
+            p.capture_tagging()
 
     def test_content_blob_checksum_required(self):
         raw = b'{}'; blob = hashlib.sha1(b'blob 2\0{}').hexdigest()
@@ -424,10 +490,17 @@ class PublisherTests(unittest.TestCase):
         if mutate_sidecar:
             self.tagfile.write_text('{}')
         commands = []
+        def write_tags():
+            values={'data/tags.json':json.dumps(dict(schemaVersion=1,tags=[dict(slug='ai',label='AI'),dict(slug='security',label='Security')])).encode(),
+                    **{f'data/stories/{ident}.json':json.dumps(dict(schemaVersion=1,id=ident,tagSlugs=['ai','security'],issueIds=[self.context['issueId']])).encode() for ident in p.selected_ids}}
+            for path,raw in values.items():
+                for target in (p.cwd/path,p.cwd/('dist/'+path)):
+                    target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw)
         def git(*args):
             commands.append(('git', args))
             if args[0] == 'checkout':
                 (p.cwd / 'data/issues').mkdir(parents=True)
+                write_tags()
                 (p.cwd / '.node-version').write_text('22.23.4\n')
                 (p.cwd / 'package.json').write_text(json.dumps(dict(engines=dict(node='22.23.4', npm='12.0.2'))))
                 if existing is not None:
@@ -550,6 +623,9 @@ class PublisherTests(unittest.TestCase):
                 if argv[1:] == ['run', 'build']:
                     (p.cwd / 'dist').mkdir()
                     (p.cwd / 'dist/index.html').write_text('offline generated fixture')
+                    (p.cwd/'dist/data').mkdir()
+                    shutil.copyfile(p.cwd/'data/tags.json',p.cwd/'dist/data/tags.json')
+                    shutil.copytree(p.cwd/'data/stories',p.cwd/'dist/data/stories')
                 return b''
             return original_run(argv, **kwargs)
         self.tagfile.write_text('{}') # Cannot influence the constructor snapshot.
