@@ -3,7 +3,7 @@ import { open, lstat, readdir, rename, link, unlink } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TextDecoder } from 'node:util';
+import { parseStrictJSON } from './strict-json.mjs';
 import { HEADINGS, stableJSON, loadArchive, validateIssue } from './content.mjs';
 import { loadStoryArchive, validateRegistry, validateStoryRecord, validateTagging,
   validateTaggingInput, validateTaggingIssueId, sha256, registrySha256, projectStories, applyTagging } from './tags.mjs';
@@ -20,10 +20,11 @@ function keys(value, required, optional = []) {
 const numericId = id => typeof id === 'string' && /^[1-9][0-9]*(?![\s\S])/u.test(id);
 const idOrder = (a,b) => BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0;
 
-function parseJSON(bytes) {
-  // JSON.parse's diagnostic may contain input bytes; never pass it to CLI logs.
-  try { return JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(bytes)); }
-  catch { throw new Error('Invalid UTF-8 JSON'); }
+export function parsePrivateJSONBytes(bytes) {
+  // Private tagging JSON has always accepted one UTF-8 BOM. Strip it only for
+  // parsing; callers still hash/freeze the original snapshot, including the BOM.
+  const content = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? bytes.subarray(3) : bytes;
+  return parseStrictJSON(content);
 }
 function reviewStories(reviewed, issueId) {
   keys(reviewed, ['start','end','sections']);
@@ -64,7 +65,7 @@ function envelope(items, registry, records, issueId, reviewedBytes) {
 
 export function prepareTaggingInput(reviewedBytes, archive, issueId) {
   validateTaggingIssueId(issueId);
-  return envelope(reviewStories(parseJSON(reviewedBytes), issueId), archive.registry, archive.records, issueId, reviewedBytes);
+  return envelope(reviewStories(parsePrivateJSONBytes(reviewedBytes), issueId), archive.registry, archive.records, issueId, reviewedBytes);
 }
 export function prepareArchiveTaggingInput(archive, issueId) {
   const issues = [...archive.issues].sort((a,b) => a.issueId.localeCompare(b.issueId));
@@ -143,13 +144,13 @@ async function exists(filename) {
 export async function loadMigrationArchive(dataDir) {
   const {issues,revisions} = await loadArchive(dataDir);
   const registryPath = path.join(dataDir,'tags.json');
-  const registry = await exists(registryPath) ? validateRegistry(parseJSON(await readPrivateJSONBytes(registryPath))) : {schemaVersion:1,tags:[]};
+  const registry = await exists(registryPath) ? validateRegistry(parsePrivateJSONBytes(await readPrivateJSONBytes(registryPath))) : {schemaVersion:1,tags:[]};
   const records = [], storiesDir = path.join(dataDir,'stories');
   if (await exists(storiesDir)) {
     await noSymlinks(storiesDir,true);
     for (const entry of await readdir(storiesDir, {withFileTypes:true})) {
       requireThat(entry.isFile() && /^[1-9][0-9]*\.json(?![\s\S])/u.test(entry.name), 'Unexpected migration story path');
-      const record = validateStoryRecord(parseJSON(await readPrivateJSONBytes(path.join(storiesDir,entry.name))), registry);
+      const record = validateStoryRecord(parsePrivateJSONBytes(await readPrivateJSONBytes(path.join(storiesDir,entry.name))), registry);
       requireThat(entry.name === `${record.id}.json`, 'Migration story filename/ID mismatch');
       const references = issues.filter(issue => Object.hasOwn(issue.items,record.id)).map(issue => issue.issueId).sort();
       requireThat(stableJSON(references) === stableJSON(record.issueIds), 'Migration story references do not match current issues');
@@ -179,18 +180,18 @@ export async function readFrozenSidecar(filename, dataDir) {
   await noSymlinks(absolute);
   const parent = await lstat(path.dirname(absolute)), info = await lstat(absolute);
   requireThat(parent.uid === process.getuid() && (parent.mode & 0o077) === 0 && info.uid === process.getuid() && (info.mode & 0o7777) === 0o600 && info.nlink === 1, 'Frozen sidecar must be private and owned (0700/0600)');
-  return parseJSON(await readPrivateJSONBytes(absolute));
+  return parsePrivateJSONBytes(await readPrivateJSONBytes(absolute));
 }
 
 async function loadApplicationArchive(dataDir, newIssue) {
   const {issues,revisions} = await loadArchive(dataDir);
   const imported = issues.find(issue => issue.issueId === newIssue.issueId);
   requireThat(imported && stableJSON(imported) === stableJSON(newIssue), 'Apply requires the exact already-imported current issue');
-  const registry = validateRegistry(parseJSON(await readPrivateJSONBytes(path.join(dataDir,'tags.json'))));
+  const registry = validateRegistry(parsePrivateJSONBytes(await readPrivateJSONBytes(path.join(dataDir,'tags.json'))));
   const records = [], storiesDir = await noSymlinks(path.join(dataDir,'stories'),true);
   for (const entry of await readdir(storiesDir,{withFileTypes:true})) {
     requireThat(entry.isFile() && /^[1-9][0-9]*\.json(?![\s\S])/u.test(entry.name), 'Unexpected application story path');
-    const record = validateStoryRecord(parseJSON(await readPrivateJSONBytes(path.join(storiesDir,entry.name))),registry);
+    const record = validateStoryRecord(parsePrivateJSONBytes(await readPrivateJSONBytes(path.join(storiesDir,entry.name))),registry);
     requireThat(entry.name === `${record.id}.json`, 'Application story filename/ID mismatch');
     records.push(record);
   }
@@ -231,7 +232,7 @@ async function applyFrozenTagging(sidecarPath, issuePath, directory) {
   const dataDir = await noSymlinks(directory,true);
   const frozen = await readFrozenSidecar(sidecarPath,dataDir);
   const before = await checkDataTree(dataDir,true);
-  const issue = validateIssue(parseJSON(await readPrivateJSONBytes(issuePath)));
+  const issue = validateIssue(parsePrivateJSONBytes(await readPrivateJSONBytes(issuePath)));
   const archive = await loadApplicationArchive(dataDir,issue);
   const next = applyTagging(archive,frozen,issue);
   // The entire next projection is valid before even staging a write. Preserve
@@ -296,8 +297,8 @@ export async function main(argv = process.argv.slice(2)) {
     await applyFrozenTagging(o['--sidecar'],o['--issue'],o['--data-dir']);
   } else {
     const dataDir = await noSymlinks(o['--data-dir'],true);
-    const input = parseJSON(await readPrivateJSONBytes(o['--input']));
-    const response = parseJSON(await readPrivateJSONBytes(o['--response']));
+    const input = parsePrivateJSONBytes(await readPrivateJSONBytes(o['--input']));
+    const response = parsePrivateJSONBytes(await readPrivateJSONBytes(o['--response']));
     await writeCandidate(o['--output'],validateTagging(input,response),[dataDir]);
   }
 }

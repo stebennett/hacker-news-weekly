@@ -139,6 +139,64 @@ test('CLI input snapshots every unique ID, exact summaries, full registry and pr
   assert.equal((await stat(output)).mode & 0o777, 0o600);
 });
 
+// Keep these source-level mutations explicit: object fixtures alone cannot
+// represent duplicate JSON members discarded by native JSON.parse.
+const escapedKey = key => `"\\u${key.charCodeAt(0).toString(16).padStart(4,'0')}${key.slice(1)}"`;
+function duplicateMember(text, key, first, escaped) {
+  const token = JSON.stringify(key);
+  assert.ok(text.includes(`${token}:`), `fixture contains ${key}`);
+  return text.replace(`${token}:`, `${token}:${JSON.stringify(first)},${escaped ? escapedKey(key) : token}:`);
+}
+
+for (const escaped of [false,true]) for (const boundary of ['response ID','response root','input root','input story','input registry']) {
+  test(`CLI validate rejects duplicate JSON ${boundary} (${escaped ? 'escaped-equivalent' : 'ordinary'}) without output`, async t => {
+    const {privateDir} = await workspace(t), dataDir = await writeTagArchive(t);
+    const inputPath = path.join(privateDir,'input.json'), responsePath = path.join(privateDir,'response.json');
+    const i = input(); i.stories[0].title = 'PRIVATE_SENTINEL inert reviewed text';
+    const inputBytes = JSON.stringify(i), responseBytes = JSON.stringify(response(['Security']));
+    await writeFile(inputPath,inputBytes); await writeFile(responsePath,responseBytes);
+    const args = output => ['validate','--data-dir',dataDir,'--input',inputPath,'--response',responsePath,'--output',path.join(privateDir,output)];
+    assert.equal(typeof taggingMain,'function');
+    success(cli(...args('control.json'))); // Identical setup reaches the real validator.
+    assert.deepEqual(JSON.parse(await readFile(path.join(privateDir,'control.json'),'utf8')),validate(i,JSON.parse(responseBytes)));
+    const target = boundary.startsWith('response') ? responsePath : inputPath;
+    const raw = boundary.startsWith('response') ? responseBytes : inputBytes;
+    const [key,first] = {
+      'response ID':['1',['AI']], 'response root':['assignments',JSON.parse(responseBytes).assignments],
+      'input root':['schemaVersion',1], 'input story':['title','PRIVATE_SENTINEL discarded text'],
+      'input registry':['label','PRIVATE_SENTINEL discarded label'],
+    }[boundary];
+    await writeFile(target,duplicateMember(raw,key,first,escaped));
+    const before = await treeSnapshot(dataDir), privateBefore = await treeSnapshot(privateDir);
+    const result = cli(...args('refused.json'));
+    assert.equal(result.status,1,result.stderr); assert.equal(result.stdout,'');
+    assert.equal(result.stderr,'Tagging failed; no valid candidate was prepared.\n');
+    await assert.rejects(stat(path.join(privateDir,'refused.json')),{code:'ENOENT'});
+    await assert.rejects(taggingMain(args('api-refused.json')),/^SyntaxError: Duplicate JSON property name$/);
+    await assert.rejects(stat(path.join(privateDir,'api-refused.json')),{code:'ENOENT'});
+    assert.deepEqual(await treeSnapshot(dataDir),before); assert.deepEqual(await treeSnapshot(privateDir),privateBefore);
+  });
+}
+
+for (const escaped of [false,true]) for (const boundary of ['root','nested item']) {
+  test(`CLI input rejects duplicate reviewed JSON ${boundary} (${escaped ? 'escaped-equivalent' : 'ordinary'}) without output`, async t => {
+    const setup = await runInput(t); success(setup.result);
+    const raw = JSON.stringify(legacy());
+    const [key,first] = boundary === 'root' ? ['start','PRIVATE_SENTINEL discarded window'] : ['title','PRIVATE_SENTINEL discarded title'];
+    await writeFile(setup.reviewedPath,duplicateMember(raw,key,first,escaped));
+    const output = path.join(setup.privateDir,'refused.json'), args = [...setup.args.slice(0,-1),output];
+    const before = await treeSnapshot(setup.dataDir), privateBefore = await treeSnapshot(setup.privateDir);
+    const result = cli(...args);
+    assert.equal(result.status,1,result.stderr); assert.equal(result.stdout,'');
+    assert.equal(result.stderr,'Tagging failed; no valid candidate was prepared.\n');
+    await assert.rejects(stat(output),{code:'ENOENT'});
+    assert.equal(typeof taggingMain,'function');
+    await assert.rejects(taggingMain(args),/^SyntaxError: Duplicate JSON property name$/);
+    await assert.rejects(stat(output),{code:'ENOENT'});
+    assert.deepEqual(await treeSnapshot(setup.dataDir),before); assert.deepEqual(await treeSnapshot(setup.privateDir),privateBefore);
+  });
+}
+
 test('CLI validate writes only canonical private candidate, bound to the exact input', async t => {
   const setup = await runInput(t); success(setup.result);
   const responsePath = path.join(setup.privateDir, 'response.json'), candidate = path.join(setup.privateDir, 'candidate.json');
@@ -444,6 +502,57 @@ async function applicationWorkspace(t) {
   const args = ['apply','--sidecar',sidecar,'--issue',issuePath,'--data-dir',dataDir];
   return {...setup,root,privateDir,dataDir,issuePath,sidecar,args};
 }
+
+for (const escaped of [false,true]) for (const boundary of ['root','assignment ID','registry label','addition label','issue item']) {
+  test(`CLI apply rejects duplicate frozen JSON ${boundary} (${escaped ? 'escaped-equivalent' : 'ordinary'}) before public mutation`, async t => {
+    const control = await applicationWorkspace(t); success(cli(...control.args));
+    const setup = await applicationWorkspace(t);
+    const target = boundary === 'issue item' ? setup.issuePath : setup.sidecar;
+    const raw = JSON.stringify(boundary === 'issue item' ? setup.issue : setup.frozen);
+    const [key,first] = {
+      'root':['assignments',setup.frozen.assignments], 'assignment ID':['3',['ai']],
+      'registry label':['label','PRIVATE_SENTINEL discarded label'],
+      'addition label':['label','PRIVATE_SENTINEL discarded label'], 'issue item':['title','PRIVATE_SENTINEL discarded title'],
+    }[boundary];
+    // Target the addition, not the first label in the registry snapshot.
+    const changed = boundary === 'addition label'
+      ? raw.replace(JSON.stringify(setup.frozen.additions),duplicateMember(JSON.stringify(setup.frozen.additions),key,first,escaped))
+      : duplicateMember(raw,key,first,escaped);
+    await writeFile(target,changed);
+    const before = await treeSnapshot(setup.dataDir), privateBefore = await treeSnapshot(setup.privateDir);
+    const result = cli(...setup.args);
+    assert.equal(result.status,1,result.stderr); assert.equal(result.stdout,'');
+    assert.equal(result.stderr,'Tagging application failed; inspect or restore the checkout before retrying.\n');
+    assert.equal(typeof taggingMain,'function');
+    await assert.rejects(taggingMain(setup.args),/^SyntaxError: Duplicate JSON property name$/);
+    assert.deepEqual(await treeSnapshot(setup.dataDir),before); assert.deepEqual(await treeSnapshot(setup.privateDir),privateBefore);
+  });
+}
+
+test('private CLI accepts escaped nonduplicate keys, key-looking string values and BOM while hashing the original review bytes', async t => {
+  const reviewed = legacy();
+  for (const section of reviewed.sections) for (const item of section.items) item.story = 'PRIVATE_SENTINEL: {"assignments":{"1":[],"1":[]}} and \\"title\\": text';
+  const setup = await runInput(t,reviewed); success(setup.result);
+  const raw = JSON.stringify(reviewed).replace('"sections":',`${escapedKey('sections')}:`).replaceAll('"title":',`${escapedKey('title')}:`);
+  const bytes = Buffer.concat([Buffer.from([0xef,0xbb,0xbf]),Buffer.from(` ${raw}\n\n`)]);
+  await writeFile(setup.reviewedPath,bytes);
+  const output = path.join(setup.privateDir,'escaped-input.json');
+  success(cli(...setup.args.slice(0,-1),output));
+  const i = JSON.parse(await readFile(output,'utf8')); assert.equal(i.reviewedSha256,sha(bytes));
+  assert.deepEqual(await readFile(setup.reviewedPath),bytes);
+  const responsePath = path.join(setup.privateDir,'escaped-response.json'), candidate = path.join(setup.privateDir,'escaped-candidate.json');
+  const inputBytes = Buffer.from('\ufeff'+JSON.stringify(i).replace('"stories":',`${escapedKey('stories')}:`));
+  const responseBytes = Buffer.from('\ufeff{"\\u0061ssignments":{"\\u0031":["\\u0041I"],"2":["AI"]}}');
+  await writeFile(output,inputBytes); await writeFile(responsePath,responseBytes);
+  success(cli('validate','--data-dir',setup.dataDir,'--input',output,'--response',responsePath,'--output',candidate));
+  assert.equal(await readFile(candidate,'utf8'),stableJSON(validate(i,response())));
+  assert.deepEqual(await readFile(output),inputBytes); assert.deepEqual(await readFile(responsePath),responseBytes);
+  const app = await applicationWorkspace(t);
+  const sidecarBytes = Buffer.from('\ufeff'+JSON.stringify(app.frozen).replace('"assignments":',`${escapedKey('assignments')}:`).replace('"3":',`${escapedKey('3')}:`));
+  await writeFile(app.sidecar,sidecarBytes); success(cli(...app.args));
+  const before = await treeSnapshot(app.dataDir); success(cli(...app.args));
+  assert.deepEqual(await treeSnapshot(app.dataDir),before); assert.deepEqual(await readFile(app.sidecar),sidecarBytes);
+});
 
 test('CLI apply reconciles exactly the imported issue, writes canonical public records and retries byte-identically without writes', async t => {
   const setup = await applicationWorkspace(t), before = await treeSnapshot(setup.dataDir), privateBefore = await treeSnapshot(setup.privateDir);

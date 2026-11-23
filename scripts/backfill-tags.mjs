@@ -3,12 +3,11 @@ import { mkdir, readdir, lstat, open, link, unlink, rmdir } from 'node:fs/promis
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TextDecoder } from 'node:util';
 import { stableJSON } from './content.mjs';
 import { validateTagging, validateTaggingInput, validateRegistry, validateStoryRecord,
   projectStories, loadStoryArchive, registrySha256, sha256 } from './tags.mjs';
 import { prepareArchiveTaggingInput, loadMigrationArchive, readPrivateJSONBytes,
-  noSymlinks, checkDataTree, readFrozenSidecar, writeCandidate, atomicPublicJSON, maxCandidateBytes } from './tagging.mjs';
+  noSymlinks, checkDataTree, readFrozenSidecar, parsePrivateJSONBytes, writeCandidate, atomicPublicJSON, maxCandidateBytes } from './tagging.mjs';
 
 const repository = fileURLToPath(new URL('..',import.meta.url));
 const requireThat = (condition,message) => { if (!condition) throw new Error(message); };
@@ -17,25 +16,6 @@ const within = (child,parent) => child === parent || child.startsWith(`${parent}
 const progressName = n => `progress-${String(n).padStart(6,'0')}.json`;
 const maxArchiveBytes = 128 * 1024 * 1024;
 
-// JSON.parse alone silently overwrites duplicate assignment keys. Validate JSON
-// syntax first, then inspect object member tokens (including escaped key names).
-function parse(bytes) {
-  let text, value;
-  try { text = new TextDecoder('utf-8',{fatal:true}).decode(bytes); value = JSON.parse(text); }
-  catch { throw new Error('Invalid UTF-8 JSON'); }
-  const stack = [], token = /"(?:[^"\\]|\\[\s\S])*"|[{}\[\]]/gu;
-  for (const match of text.matchAll(token)) {
-    const t = match[0];
-    if (t === '{') stack.push(new Set());
-    else if (t === '[') stack.push(null);
-    else if (t === '}' || t === ']') stack.pop();
-    else if (/^\s*:/u.test(text.slice(match.index+t.length))) {
-      const key = JSON.parse(t), seen = stack.at(-1);
-      requireThat(seen && !seen.has(key),'Duplicate JSON member'); seen.add(key);
-    }
-  }
-  return value;
-}
 async function syncDirectory(directory) {
   const handle = await open(directory,constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
   try { await handle.sync(); } finally { await handle.close(); }
@@ -88,7 +68,7 @@ function pending(snapshot,registry,assignments) {
   return stories.length ? validateTaggingInput({...snapshot.input,registry,registrySha256:registrySha256(registry),stories}) : null;
 }
 function validateResponse(input,bytes) {
-  const response = parse(bytes);
+  const response = parsePrivateJSONBytes(bytes);
   requireThat(response && !Array.isArray(response) && Object.keys(response).length === 2 && Object.hasOwn(response,'assignments') && response.inputSha256 === sha256(stableJSON(input)), 'Response must bind the exact pending input');
   return validateTagging(input,{assignments:response.assignments});
 }

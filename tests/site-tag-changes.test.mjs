@@ -143,6 +143,46 @@ test('idempotent path rejects published assignments incompatible with frozen tag
   const module=await import(moduleURL); assert.equal(typeof module.verifyTagChanges,'function');
   await assert.rejects(module.verifyTagChanges(s.options),/assignment/i);
 });
+for (const escaped of [false,true]) for (const boundary of ['sidecar root','sidecar assignment','sidecar registry','issue item']) {
+  test(`CLI verifier rejects duplicate private JSON ${boundary} (${escaped ? 'escaped-equivalent' : 'ordinary'}) without authorizing publication`, async t => {
+    const s=await setup(t), args=['scripts/verify-tag-changes.mjs','--repository',s.repo,'--base',s.options.base,'--sidecar',s.sidecar,'--issue',s.issuePath];
+    const cli=()=>spawnSync(process.execPath,args,{encoding:'utf8',timeout:15000});
+    const module=await import(moduleURL); assert.equal(typeof module.verifyTagChanges,'function');
+    await module.verifyTagChanges(s.options);
+    assert.equal(cli().status,0,'valid control authorizes the exact fixture');
+    const target=boundary === 'issue item' ? s.issuePath : s.sidecar;
+    const [key,first] = {
+      'sidecar root':['assignments',s.frozen.assignments], 'sidecar assignment':['3',['ai']],
+      'sidecar registry':['label','PRIVATE_SENTINEL discarded label'], 'issue item':['title','PRIVATE_SENTINEL discarded title'],
+    }[boundary];
+    const raw=JSON.stringify(boundary === 'issue item' ? s.issue : s.frozen), token=JSON.stringify(key);
+    const next=escaped ? `"\\u${key.charCodeAt(0).toString(16).padStart(4,'0')}${key.slice(1)}"` : token;
+    assert.ok(raw.includes(`${token}:`));
+    await writeFile(target,raw.replace(`${token}:`,`${token}:${JSON.stringify(first)},${next}:`));
+    // Match the supplied issue bytes to the actual new imported file so a
+    // byte-parity guard cannot accidentally mask permissive JSON parsing.
+    if (boundary === 'issue item') await writeFile(path.join(s.dataDir,'issues',`${s.issue.issueId}.json`),await readFile(target));
+    const before=git(s.repo,'diff','--binary',s.options.base), sidecarBytes=await readFile(s.sidecar), issueBytes=await readFile(s.issuePath);
+    const result=cli(); assert.equal(result.status,1,result.stderr); assert.equal(result.stdout,'');
+    assert.equal(result.stderr,'Tag content diff validation failed; no publication authorized.\n');
+    await assert.rejects(module.verifyTagChanges(s.options),/^SyntaxError: Duplicate JSON property name$/);
+    assert.equal(git(s.repo,'diff','--binary',s.options.base),before);
+    assert.deepEqual(await readFile(s.sidecar),sidecarBytes); assert.deepEqual(await readFile(s.issuePath),issueBytes);
+  });
+}
+
+test('CLI verifier accepts BOM and escaped nonduplicate private JSON without rewriting the frozen bytes', async t => {
+  const s=await setup(t);
+  const sidecarBytes=Buffer.from('\ufeff'+JSON.stringify(s.frozen).replace('"assignments":','"\\u0061ssignments":').replace('"3":','"\\u0033":'));
+  // Public issue files remain JSON-only; private sidecars retain BOM support.
+  const issueBytes=Buffer.from(JSON.stringify(s.issue).replace('"items":','"\\u0069tems":'));
+  await writeFile(s.sidecar,sidecarBytes); await writeFile(s.issuePath,issueBytes);
+  await writeFile(path.join(s.dataDir,'issues',`${s.issue.issueId}.json`),issueBytes);
+  const result=spawnSync(process.execPath,['scripts/verify-tag-changes.mjs','--repository',s.repo,'--base',s.options.base,'--sidecar',s.sidecar,'--issue',s.issuePath],{encoding:'utf8',timeout:15000});
+  assert.equal(result.status,0,result.stderr); assert.equal(result.stdout,'');
+  assert.deepEqual(await readFile(s.sidecar),sidecarBytes); assert.deepEqual(await readFile(s.issuePath),issueBytes);
+});
+
 test('CLI uses explicit local exact base, has strict arguments and sanitized diagnostics', async t => {
   const s=await setup(t), args=['scripts/verify-tag-changes.mjs','--repository',s.repo,'--base',s.options.base,'--sidecar',s.sidecar,'--issue',s.issuePath];
   const cli=(argv)=>spawnSync(process.execPath,argv,{encoding:'utf8',timeout:15000});

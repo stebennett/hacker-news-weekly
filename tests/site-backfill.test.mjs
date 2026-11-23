@@ -132,11 +132,25 @@ for (const [name,mutate] of [
   assert.equal(result.status,1); assert.doesNotMatch(result.stderr,/PRIVATE_SENTINEL/); assert.deepEqual(await tree(s.work),before);
 });
 
-test('duplicate JSON story keys are rejected rather than silently overwritten', async t => {
-  const s = await setup(t); ok(cli(...s.prepare)); const r = await response(s);
-  await writeFile(r.file,`{"inputSha256":"${r.value.inputSha256}","assignments":{"1":["AI"],"1":["Security"]}}`);
-  const before = await tree(s.work); assert.equal(cli('accept','--work-dir',s.work,'--response',r.file).status,1); assert.deepEqual(await tree(s.work),before);
-});
+for (const escaped of [false,true]) for (const boundary of ['assignment ID','root']) {
+  test(`backfill rejects duplicate JSON ${boundary} (${escaped ? 'escaped-equivalent' : 'ordinary'}) without accepting progress`, async t => {
+    const control = await setup(t); ok(cli(...control.prepare)); await accept(control,'Security');
+    const s = await setup(t); ok(cli(...s.prepare)); const r = await response(s);
+    const assignments = JSON.stringify(r.value.assignments);
+    const raw = boundary === 'assignment ID'
+      ? `{"inputSha256":"${r.value.inputSha256}","assignments":{"1":["AI"],${escaped ? '"\\u0031"' : '"1"'}:["Security"]}}`
+      : `{"assignments":{"1":["PRIVATE_SENTINEL"]},"inputSha256":"${r.value.inputSha256}",${escaped ? '"\\u0061ssignments"' : '"assignments"'}:${assignments}}`;
+    await writeFile(r.file,raw);
+    const before = await tree(s.work), publicBefore = await tree(s.data);
+    const {main} = await import('../scripts/backfill-tags.mjs'); assert.equal(typeof main,'function');
+    const args = ['accept','--work-dir',s.work,'--response',r.file], result = cli(...args);
+    assert.equal(result.status,1); assert.equal(result.stdout,'');
+    assert.equal(result.stderr,'Backfill failed; inspect private progress and source checkout before retrying.\n');
+    await assert.rejects(main(args),/Duplicate JSON (member|property name)/);
+    assert.deepEqual(await tree(s.work),before); assert.deepEqual(await tree(s.data),publicBefore);
+    await assert.rejects(lstat(path.join(s.work,'progress-000001.json')),{code:'ENOENT'});
+  });
+}
 
 for (const relative of ['tags.json','issues/2026-11-13.json','revisions/2026-11-13/v1.json']) test(`apply rejects exact source byte changes: ${relative}`,async t => {
   const s = await setup(t); ok(cli(...s.prepare)); await accept(s,'Security','one.json'); await accept(s,'Security','two.json');

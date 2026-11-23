@@ -3,10 +3,9 @@ import { mkdtemp, mkdir, writeFile, rm, lstat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TextDecoder } from 'node:util';
 import { stableJSON, validateIssue } from './content.mjs';
 import { loadStoryArchive, applyTagging } from './tags.mjs';
-import { checkDataTree, readFrozenSidecar, readPrivateJSONBytes, maxCandidateBytes } from './tagging.mjs';
+import { checkDataTree, readFrozenSidecar, readPrivateJSONBytes, parsePrivateJSONBytes, maxCandidateBytes } from './tagging.mjs';
 
 // Local Git objects only. No refs are fetched or resolved from the network, and
 // no general database/history API is exposed to content callers.
@@ -17,10 +16,6 @@ function localGit(repository, ...args) {
   return execFileSync('git',['--no-replace-objects','-c','protocol.allow=never',...args],{cwd:repository,
     timeout:15000,maxBuffer:20*1024*1024,stdio:['ignore','pipe','pipe'],
     env:{PATH:process.env.PATH,HOME:process.env.HOME,GIT_CONFIG_NOSYSTEM:'1',GIT_CONFIG_GLOBAL:'/dev/null',GIT_TERMINAL_PROMPT:'0',GIT_NO_LAZY_FETCH:'1'}});
-}
-function parseJSON(raw) {
-  try { return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(raw)); }
-  catch { throw new Error('Invalid UTF-8 JSON'); }
 }
 async function materializeBase(repository, base, destination) {
   const entries = splitZ(localGit(repository,'ls-tree','-rz','--full-tree',base,'--','data'));
@@ -82,7 +77,7 @@ export async function verifyTagChanges({repository = process.cwd(),base,sidecar,
   repository = path.resolve(repository);
   requireThat(localGit(repository,'rev-parse','--show-toplevel').toString().trim() === repository, 'Exact repository root required');
   requireThat(localGit(repository,'rev-parse','HEAD').toString().trim() === base, 'Stale base: checkout HEAD differs from validated base');
-  const issueBytes = await readPrivateJSONBytes(issuePath), issue = validateIssue(parseJSON(issueBytes));
+  const issueBytes = await readPrivateJSONBytes(issuePath), issue = validateIssue(parsePrivateJSONBytes(issueBytes));
   const frozen = await readFrozenSidecar(sidecar,path.join(repository,'data'));
   const temporary = await mkdtemp(path.join(tmpdir(),'twihn-tag-base-'));
   try {
