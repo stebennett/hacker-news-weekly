@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://twihn.com/schema/story.schema.json",
+  "title": "TWIHN independent public story tags v1",
+  "$comment": "Runtime validation via scripts/tags.mjs validateStoryRecord is also required: all tag references exist in the validated registry, tagSlugs are in ascending slug order and issueIds in ascending date order. Validators reject noncanonical ordering rather than mutate input. Archive-level validation separately checks actual published issue identity and exact membership. HN IDs are literal strings, never trimmed or coerced.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*$",
+      "not": { "pattern": "[^0-9]" }
+    },
+    "tagSlugs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 80,
+        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        "not": { "pattern": "[^a-z0-9-]" }
+      }
+    },
+    "issueIds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "format": "date",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      }
+    }
+  },
+  "required": ["schemaVersion", "id", "tagSlugs", "issueIds"]
+}

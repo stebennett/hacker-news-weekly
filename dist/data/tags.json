@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "tags": [
+    {
+      "label": "AI",
+      "slug": "ai"
+    },
+    {
+      "label": "Aviation",
+      "slug": "aviation"
+    },
+    {
+      "label": "Copyright",
+      "slug": "copyright"
+    },
+    {
+      "label": "Data Visualization",
+      "slug": "data-visualization"
+    },
+    {
+      "label": "Databases",
+      "slug": "databases"
+    },
+    {
+      "label": "Design",
+      "slug": "design"
+    },
+    {
+      "label": "DIY",
+      "slug": "diy"
+    },
+    {
+      "label": "E-Commerce",
+      "slug": "e-commerce"
+    },
+    {
+      "label": "Economics",
+      "slug": "economics"
+    },
+    {
+      "label": "Education",
+      "slug": "education"
+    },
+    {
+      "label": "Email",
+      "slug": "email"
+    },
+    {
+      "label": "Finance",
+      "slug": "finance"
+    },
+    {
+      "label": "Games",
+      "slug": "games"
+    },
+    {
+      "label": "Hardware",
+      "slug": "hardware"
+    },
+    {
+      "label": "Literature",
+      "slug": "literature"
+    },
+    {
+      "label": "Maps",
+      "slug": "maps"
+    },
+    {
+      "label": "News",
+      "slug": "news"
+    },
+    {
+      "label": "Open Source",
+      "slug": "open-source"
+    },
+    {
+      "label": "Operating Systems",
+      "slug": "operating-systems"
+    },
+    {
+      "label": "Privacy",
+      "slug": "privacy"
+    },
+    {
+      "label": "Python",
+      "slug": "python"
+    },
+    {
+      "label": "Search Engines",
+      "slug": "search-engines"
+    },
+    {
+      "label": "Security",
+      "slug": "security"
+    },
+    {
+      "label": "Self-Hosting",
+      "slug": "self-hosting"
+    },
+    {
+      "label": "Service Reliability",
+      "slug": "service-reliability"
+    },
+    {
+      "label": "Software Development",
+      "slug": "software-development"
+    },
+    {
+      "label": "Space",
+      "slug": "space"
+    },
+    {
+      "label": "Typography",
+      "slug": "typography"
+    },
+    {
+      "label": "Web Browsers",
+      "slug": "web-browsers"
+    }
+  ]
+}

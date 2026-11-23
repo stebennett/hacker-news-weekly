@@ -6,7 +6,7 @@ For the scheduled collect → grounded research → validated content PR → Clo
 
 The operator separately authorized automatic validated **weekly content only**. Source PRs still require human approval. The scheduled source launch gate refuses unmerged runtime/source changes; its pre-activation fallback preserves the existing email-only job and must not open another send path for any occurrence with private delivery state. The configuration examples below document the low-level adapter contract, including the deliberately disabled bootstrap setup and older GitHub Deployments evidence mode; they are not the production weekly settings.
 
-Python 3.11+ on Linux, standard library only. Run commands from the repository root (`/home/hermes/projects/twihn`). No command installs a scheduler, changes DNS, creates a GitHub repository, or sends an operational alert. `resume` **can send the approved digest once** through the configured submission adapter; none of the tests use a real transport.
+Python 3.11+ on Linux; the Python runtime uses the standard library. Tagged publication/readback also requires the pinned Node/npm toolchain and installed site dependencies (see [STORY_TAGS.md](STORY_TAGS.md)). Run commands from the repository root (`/path/to/checkout`). No command installs a scheduler, changes DNS, creates a GitHub repository, or sends an operational alert. `resume` **can send the approved digest once** through the configured submission adapter; none of the tests use a real transport.
 
 ## Identity and immutable review
 
@@ -24,7 +24,7 @@ Use those exact bounds with the repository's collector, not drifting `--days 7`:
 ```sh
 python3 integrations/weekly_hn_digest.py \
   --start 2026-11-06T08:00:00Z --end 2026-11-13T08:00:00Z \
-  --limit 10 --format selected-json > "$HOME/.hermes/data/twihn-selected.json"
+  --limit 10 --format selected-json > /private/twihn-selected.json
 ```
 
 Research **every unique selected item** and add `story` and `discussion` paragraphs. The score ranking takes precedence; the comments ranking contains only the highest-commented remaining ordinary stories. Do not claim an inaccessible source was read; record its availability accurately. Collection and factual research are intentionally outside this deterministic runtime. A human/agent reviewer must approve the completed dataset; validation cannot establish factual truth.
@@ -33,48 +33,50 @@ Research **every unique selected item** and add `story` and `discussion` paragra
 
 ```sh
 umask 077
-python3 -m runtime prep --issue 2026-11-13 \
-  --reviewed "$HOME/.hermes/data/twihn-reviewed.json" --approve-reviewed
+python3 -m runtime --state-dir /private/twihn/issues prep --issue 2026-11-13 \
+  --reviewed /private/twihn-reviewed.json --approve-reviewed
 ```
 
 Default renderer: `integrations/render_email.py`; `prep --renderer /absolute/path.py` can explicitly select a compatible renderer. Input remains the existing `{start,end,sections:[{heading,items:[...]}]}` format. The score and Ask sections require ten entries; the comments section contains up to ten remaining ordinary stories after score precedence. A genuinely smaller score or Ask population currently stops email rather than inventing entries. Empty Show HN is supported; there is no maximum Show count.
 
 Re-preparing identical bytes is idempotent. Any byte change, changed summaries across rankings, duplicate IDs within a section, invalid order/metrics/window, missing summaries or unsafe legacy URLs is rejected. A whitespace-only change is still a different frozen digest. Revision 1 cannot be silently overwritten; factual corrections use the site's reviewed revision/retention workflow and must **not** reset private email state or cause a resend.
 
+For scheduled publication, use `runtime.weekly approve --tagging` after the input/model-response/sidecar workflow in [STORY_TAGS.md](STORY_TAGS.md), not low-level `prep` alone. The sidecar is separate from collector tags and reviewed email JSON; approval binds its exact bytes to the frozen review and writes private publication metadata last. Missing/invalid tagging or provenance returns `emailPrepared: true` with `websitePreparationError` after a valid review has been frozen. Continue through the existing authorized `resume` for baseline email; never publish untagged or call a second sender. Frozen retries reuse review, metadata and sidecar without regeneration.
+
 ## Private durable state and lock
 
-Default: `$HOME/.hermes/data/twihn/`; override with global `--state-dir /durable/private/path`. Never put it in Git, `data/`, `public/`, `dist/`, scratch, or a web-served directory. Directories are owned by the current UID and mode 0700; files are 0600. Symlink paths are rejected. Writes use same-directory temporary files, `fsync`, atomic replace, and directory `fsync`. Every public state-changing CLI operation takes one nonblocking `flock` across all issues/channels, serializing shared website/Git adapters. It fails clearly if another writer owns the lock.
+The runtime has a user-local default; production must use its existing explicit private state root. Examples use global `--state-dir /private/twihn/issues`. Never put it in Git, `data/`, `public/`, `dist/`, scratch, or a web-served directory. Directories are owned by the current UID and mode 0700; files are 0600. Symlink paths are rejected. Writes use same-directory temporary files, `fsync`, atomic replace, and directory `fsync`. Every public state-changing CLI operation takes one nonblocking `flock` across all issues/channels, serializing shared website/Git adapters. It fails clearly if another writer owns the lock.
 
-Per issue: `reviewed.json`, `state.json`, `baseline.eml`, `send.eml`, `context.json`, `report.json`. The latter files can contain private sender/recipient details and adapter errors. No runtime file is public content. `state.json` carries separate website/email statuses and durable verification evidence.
+Per issue: `reviewed.json`, `state.json`, `baseline.eml`, `send.eml`, `context.json`, `report.json`, and (after successful website preparation) frozen `tagging.json`. The latter files can contain private sender/recipient details and adapter errors. No runtime file is public content. `state.json` carries separate website/email statuses and durable verification evidence.
 
 Tests verify independent-process lock exclusion and real descendant process killing on the tested Linux filesystem. Before moving private state to NFS/FUSE or another persistent filesystem, rerun these tests with `TMPDIR` on that filesystem and verify its flock/rename/fsync guarantees. Do not infer distributed locking from local tests.
 
 ## Practical adapter configuration
 
-Put configuration and credentials **outside the repository**, mode 0600. Sender and recipient have no committed production defaults; copy the already-approved values from the existing private job, never infer or substitute an address. Example `$HOME/.hermes/data/twihn-runtime.json` (example addresses must be replaced privately):
+Put configuration and credentials **outside the repository**, mode 0600. Sender and recipient have no committed production defaults; copy the already-approved values from the existing private job, never infer or substitute an address. Example `/private/twihn-runtime.json` (example addresses must be replaced privately):
 
 ```json
 {
   "sender": "approved-sender@example.org",
   "recipient": "approved-recipient@example.org",
-  "cwd": "/home/hermes/projects/twihn",
+  "cwd": "/path/to/checkout",
   "command_timeout": 120,
   "website_timeout": 600,
-  "email_preflight": ["python3", "-m", "runtime.adapters", "preflight", "--settings", "/home/hermes/.hermes/data/twihn-mail.json", "--context", "{context}"],
-  "email_send": ["python3", "-m", "runtime.adapters", "send", "--settings", "/home/hermes/.hermes/data/twihn-mail.json", "--context", "{context}"],
-  "email_verify": ["python3", "-m", "runtime.adapters", "verify", "--settings", "/home/hermes/.hermes/data/twihn-mail.json", "--context", "{context}"],
+  "email_preflight": ["python3", "-m", "runtime.adapters", "preflight", "--settings", "/private/twihn-mail.json", "--context", "{context}"],
+  "email_send": ["python3", "-m", "runtime.adapters", "send", "--settings", "/private/twihn-mail.json", "--context", "{context}"],
+  "email_verify": ["python3", "-m", "runtime.adapters", "verify", "--settings", "/private/twihn-mail.json", "--context", "{context}"],
   "website_publish": ["python3", "-m", "runtime.adapters", "website-disabled", "--context", "{context}"]
 }
 ```
 
 This initial website adapter fails immediately and deliberately; the baseline email branch still runs. It is the honest configuration while repo/domain/deployment access is blocked, not a claim the website is deployed. A missing website adapter also fails closed without suppressing email.
 
-Private `$HOME/.hermes/data/twihn-mail.json`:
+Private `/private/twihn-mail.json`:
 
 ```json
 {
-  "binary": "/home/hermes/.hermes/home/.local/bin/himalaya",
-  "home": "/home/hermes/.hermes/home",
+  "binary": "/path/to/installed/himalaya",
+  "home": "/private/mail-home",
   "sent_mailbox": "Sent Items",
   "timeout": 30,
   "verify_page_size": 50,
@@ -90,8 +92,8 @@ Once an approved content PR has been merged and deployed, replace website settin
 
 ```json
 {
-  "website_publish": ["python3", "-m", "runtime.site_verify", "resolve", "--settings", "/home/hermes/.hermes/data/twihn-site.json", "--context", "{context}"],
-  "website_verify": ["python3", "-m", "runtime.site_verify", "verify", "--settings", "/home/hermes/.hermes/data/twihn-site.json", "--context", "{context}"]
+  "website_publish": ["python3", "-m", "runtime.site_verify", "resolve", "--settings", "/private/twihn-site.json", "--context", "{context}"],
+  "website_verify": ["python3", "-m", "runtime.site_verify", "verify", "--settings", "/private/twihn-site.json", "--context", "{context}"]
 }
 ```
 
@@ -102,14 +104,14 @@ Private `twihn-site.json`:
   "repository": "OWNER/REPOSITORY",
   "production_branch": "main",
   "environment": "Production",
-  "gh": "gh",
+  "node": "/path/to/pinned/bin/node",
   "timeout": 30
 }
 ```
 
 `resolve` performs **read-only** GitHub API calls: resolve actual production-branch commit, read that commit's tracked public issue, compare all ordered IDs, metrics, URLs, timestamps and both summaries with the frozen legacy data. It does not push, create/merge PRs, or publish new content. Import/publication of new weekly content still needs the approved content PR workflow and explicit policy; there is no hidden auto-merge or unchecked main push.
 
-`verify` requires GitHub Deployment API evidence for that exact commit and configured production environment, with its latest deployment status successful. It reads the same commit's tracked `dist/build-manifest.json`, issue HTML and public JSON; checks manifest hashes and frozen-content parity; then requests the three real HTTPS `twihn.com` routes and compares exact bytes and revalidation cache headers. The normal Python TLS verifier is retained; previews/other hosts and immutable mutable-route caching fail closed. It stores artifact URLs/cache policies/digests and deployment ID as evidence. This adapter is usable when Pages reports GitHub Deployments. If the integration exposes only check-runs or Cloudflare deployment APIs, provide a scoped read adapter meeting the following contract; **do not fake a GitHub deployment record**. Live verification has not been claimed for unconfigured infrastructure.
+`verify` defaults to the older GitHub Deployments evidence mode shown above. The scheduled configuration instead uses `deployment_evidence: "cloudflare-check-run"` and its observed trusted Cloudflare App/check name; never invent a GitHub deployment record. Both modes require the exact production commit, frozen-content parity and tagged artifact verification described in [STORY_TAGS.md](STORY_TAGS.md#production-readback-prerequisites-and-limits). Verification downloads one size-capped exact-commit public codeload archive and runs the installed, reviewed Node validators with installed dependencies over its entire local data/dist inventory. It then compares canonical HTTPS manifest/issue/tag JSON and sampled affected tag pages byte-for-byte with cache checks. It does not remotely crawl every historical page. Standard TLS and redirect refusal remain enforced; a preview/CI green alone is insufficient. Missing pinned Node/dependencies, unavailable codeload, invalid archive, request-budget exhaustion or deadline fail website cleanly without authorizing resend.
 
 ### Custom publication and readback contract
 
@@ -137,19 +139,19 @@ The **entire website stage** (custom checkout/install/build/commit/PR/deploy/rea
 
 ```sh
 # Can submit the approved digest; use only for the existing authorized delivery.
-python3 -m runtime --config "$HOME/.hermes/data/twihn-runtime.json" \
+python3 -m runtime --state-dir /private/twihn/issues --config /private/twihn-runtime.json \
   resume --issue 2026-11-13
 
 # Website only: NEVER renders, preflights, or sends email.
-python3 -m runtime --config "$HOME/.hermes/data/twihn-runtime.json" \
+python3 -m runtime --state-dir /private/twihn/issues --config /private/twihn-runtime.json \
   website-only --issue 2026-11-13
 
 # Read back an ambiguous send; NEVER sends, even if Sent Items is empty.
-python3 -m runtime --config "$HOME/.hermes/data/twihn-runtime.json" \
+python3 -m runtime --state-dir /private/twihn/issues --config /private/twihn-runtime.json \
   reconcile --issue 2026-11-13 --channel email
 
 # Verify previously recorded production commit without publishing again.
-python3 -m runtime --config "$HOME/.hermes/data/twihn-runtime.json" \
+python3 -m runtime --state-dir /private/twihn/issues --config /private/twihn-runtime.json \
   reconcile --issue 2026-11-13 --channel website
 ```
 
@@ -172,6 +174,7 @@ Public correction publication is separate from sending: preserve old public revi
 ## Verification without sending
 
 ```sh
+umask 022
 python3 -m unittest discover -s tests/runtime -v
 python3 -m compileall -q runtime tests/runtime
 python3 -m runtime --help
