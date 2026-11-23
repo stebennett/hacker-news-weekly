@@ -102,8 +102,11 @@ add site deployment credentials or make dashboard overrides that conflict with T
    and preview whenever the head changes. Only the human merges the source migration.
 4. Resolve the actual resulting production main commit and verify trusted
    Cloudflare **production** evidence plus exact manifest/JSON/HTML readback.
-   Only then install that approved source/toolchain/dependencies while paused,
-   pass doctor and launch-check, and follow the scheduler activation checklist.
+   Use the already-reviewed, tested verification checkout and its preinstalled
+   dependencies for this readback; its build-input bytes must match deployed main.
+   Do not use an incompatible old runtime or install packages during readback.
+   Only then provision that approved release in the active runtime checkout while
+   paused, pass doctor and launch-check, and follow the activation checklist.
    No live job/skill/config change or test email is authorized by this migration.
 
 ## Restore
