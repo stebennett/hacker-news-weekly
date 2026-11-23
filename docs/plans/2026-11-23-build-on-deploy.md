@@ -38,13 +38,15 @@
 
 ## Task 3: Trusted exact-commit source-only production readback
 
-**Files:** `runtime/site_verify.py`, `tests/runtime/test_site_verify.py`, `tests/runtime/test_tagged_publication.py` as needed.
+**Files:** `runtime/site_verify.py`, `runtime/trusted_build.py`, `tests/runtime/test_site_verify.py`, `tests/runtime/test_trusted_build.py`; narrowly scoped process-ownership changes in `runtime/orchestrator.py` and focused runtime tests if needed. E2E fixture integration remains coordinated with Task 2.
 
 1. Add a source-only exact-commit archive fixture with no `dist/`, real public data and malicious fetched build/template/schema markers. The real expectation path must generate/verify output using installed trusted code/dependencies, ignore fetched code and never run npm install. Add a test for missing installed dependencies and preserve clear fail-closed diagnostics.
 2. Run focused tests to intended RED. Preserve and rerun existing duplicate-key, inventory traversal/symlink/link, compressed/extracted byte limits, global request/deadline and selected-pagination readback regressions.
 3. Extract only exact-commit public data into a private temporary workspace, explicitly set public-file permissions, and retain strict whole-archive validation/limits. Before reconstruction, bind the exact commit's complete build-input inventories and bytes to the installed trusted inputs: src/, scripts/, schema/, public/, astro.config.mjs, tsconfig.json, package.json, package-lock.json, .node-version, .npmrc and any other actual build-affecting configuration. Reject missing/extra/changed inputs and fetched header/schema/config changes; never execute downloaded scripts. Stage the minimal installed trusted build inputs and already-installed dependencies into that disposable workspace; isolate Astro/Vite caches as well as output. Ensure installed current data/dist cannot affect expected output.
 4. Invoke the pinned Node build with a stripped environment and the existing remaining deadline, then run independent complete semantic verification and derive selected expected artifact bytes. Preserve exact full manifest comparison, all selected registry/story/directory/page boundary comparisons and bounded-not-full-crawl evidence. No extra recovery network/package installs or delivery-state writes. Preserve request accounting for the one archive acquisition.
 5. Exercise the real build (not just mocked expected output) from a source-only archive; test malicious/missing data and trusted-input/dependency refusal, including noncanonical validated source bytes. Run focused Python tests, full runtime suite and commit once GREEN.
+
+**Discovered supervision regression gate:** An inner Node build must not escape the enclosing website stage's process group. Test the actual `website_worker` path with an outer timeout shorter than the inner build deadline, and prove no child can write after the stage exits. Preserve standalone inner-deadline cleanup and exited-leader descendant cleanup too. Process ownership must be established by trusted runtime policy, without an operator configuration change, and must not alter delivery/no-resend semantics. A passing standalone helper timeout test alone does not establish this cross-layer invariant.
 
 ## Task 4: Terraform-managed build-and-deploy
 
