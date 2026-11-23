@@ -46,12 +46,15 @@ async function actualData(repository) {
   return files;
 }
 async function changedPaths(repository,base,issue,idempotent) {
-  const raw = splitZ(localGit(repository,'diff','--no-ext-diff','--no-renames','--name-status','-z',base,'--'));
-  requireThat(raw.length % 2 === 0, 'Invalid changed-path readback');
   const paths = new Set();
-  for (let n=0;n<raw.length;n+=2) {
-    requireThat(['A','M'].includes(raw[n]), 'Deletion/rename/nonregular change refused');
-    paths.add(raw[n+1]);
+  // Worktree changes can cancel staged changes; authorize both views independently.
+  for (const cached of [[],['--cached']]) {
+    const raw = splitZ(localGit(repository,'diff',...cached,'--no-ext-diff','--no-renames','--name-status','-z',base,'--'));
+    requireThat(raw.length % 2 === 0, 'Invalid changed-path readback');
+    for (let n=0;n<raw.length;n+=2) {
+      requireThat(['A','M'].includes(raw[n]), 'Deletion/rename/nonregular change refused');
+      paths.add(raw[n+1]);
+    }
   }
   for (const name of splitZ(localGit(repository,'ls-files','--others','--exclude-standard','-z'))) paths.add(name);
   if (idempotent) requireThat(paths.size === 0, 'Idempotent published checkout must be unchanged');

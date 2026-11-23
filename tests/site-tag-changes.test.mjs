@@ -188,6 +188,43 @@ test('ignored local build output is allowed, but any force-staged generated path
   await assert.rejects(verify(s),/unauthorized|non-content/i);
 });
 
+for (const existing of [false,true]) test(`CLI rejects a staged generated path deleted only from the worktree (${existing ? 'idempotent' : 'new issue'})`, async t => {
+  const s=await setup(t,{existing});
+  const args=['scripts/verify-tag-changes.mjs','--repository',s.repo,'--base',s.options.base,'--sidecar',s.sidecar,'--issue',s.issuePath,...(existing ? ['--idempotent'] : [])];
+  const cli=()=>spawnSync(process.execPath,args,{encoding:'utf8',timeout:15000});
+  // Legitimate staged registry/record/issue changes remain authorized.
+  git(s.repo,'add','data');
+  const valid=cli(); t.diagnostic(`valid CLI status: ${valid.status}`);
+  assert.equal(valid.status,0,valid.stderr);
+  const generated=path.join(s.repo,'dist/index.html');
+  await mkdir(path.dirname(generated)); await writeFile(generated,'locally built output');
+  git(s.repo,'add','-f','dist/index.html');
+  const present=cli(); t.diagnostic(`staged + present CLI status: ${present.status}`);
+  assert.equal(present.status,1,present.stderr);
+  await rm(generated); // Leave the added blob in the index.
+  assert.equal(git(s.repo,'diff','--cached','--no-renames','--name-status','-z',s.options.base,'--','dist/index.html'),'A\0dist/index.html\0');
+  assert.equal(git(s.repo,'diff','--name-only',s.options.base,'--','dist/index.html'),'');
+  const cached=git(s.repo,'diff','--cached','--binary',s.options.base), worktree=git(s.repo,'diff','--binary',s.options.base);
+  const hidden=cli(); t.diagnostic(`staged + absent CLI status: ${hidden.status}`);
+  assert.equal(hidden.status,1,'generated index entry must be rejected even when its worktree copy is absent');
+  assert.equal(hidden.stdout,'');
+  assert.equal(hidden.stderr,'Tag content diff validation failed; no publication authorized.\n');
+  await assert.rejects(verify(s),existing ? /unchanged/i : /unauthorized|non-content/i);
+  await assert.rejects(readFile(generated),{code:'ENOENT'});
+  assert.equal(git(s.repo,'diff','--cached','--binary',s.options.base),cached);
+  assert.equal(git(s.repo,'diff','--binary',s.options.base),worktree);
+});
+
+test('record authorization rejects cached source modification hidden by restored worktree bytes', async t => {
+  const s=await setup(t), filename=path.join(s.repo,'source.mjs'), original=await readFile(filename);
+  await verify(s);
+  await writeFile(filename,'changed source'); git(s.repo,'add','source.mjs');
+  await writeFile(filename,original);
+  assert.equal(git(s.repo,'diff','--cached','--no-renames','--name-status','-z',s.options.base,'--','source.mjs'),'M\0source.mjs\0');
+  assert.equal(git(s.repo,'diff','--name-only',s.options.base,'--','source.mjs'),'');
+  await assert.rejects(verify(s),/unauthorized|non-content/i);
+});
+
 test('missing canonical issue cannot be authorized by registry and story changes alone', async t => {
   const s=await setup(t); await rm(path.join(s.dataDir,'issues',`${s.issue.issueId}.json`));
   await assert.rejects(verify(s),/include current issue/i);
