@@ -1,4 +1,5 @@
 import base64
+import gzip
 import io
 import json
 from pathlib import Path
@@ -630,6 +631,155 @@ class ExactArchiveTests(unittest.TestCase):
         with tarfile.open(fileobj=stream,mode='w:gz') as tar:
             for n in range(50001):tar.addfile(tarfile.TarInfo('repo-'+'a'*40+'/docs/'+str(n)))
         with self.assertRaisesRegex(RuntimeError,'inventory limit'):self.expected(stream.getvalue())
+
+    def metadata_archive(self,kind,payload,*,count=1,declared_size=None):
+        info=tarfile.TarInfo('metadata');info.type=kind
+        info.size=len(payload) if declared_size is None else declared_size
+        record=info.tobuf(format=tarfile.GNU_FORMAT)+payload+b'\0'*((-len(payload))%512)
+        return gzip.compress(record*count+gzip.decompress(self.archive()))
+
+    def test_codeload_global_and_per_path_pax_preserve_real_source_reconstruction(self):
+        self.assertTrue(callable(site.expected_artifacts))
+        stream=io.BytesIO()
+        with tarfile.open(fileobj=io.BytesIO(self.archive()),mode='r:gz') as source,\
+             tarfile.open(fileobj=stream,mode='w:gz',format=tarfile.PAX_FORMAT,
+                          pax_headers={'comment':self.context['commit']}) as target:
+            for info in source:
+                # Git codeload uses global commit comments and per-path PAX.
+                info.pax_headers={'path':info.name,'mtime':'1700000000.123456789'}
+                target.addfile(info,source.extractfile(info) if info.isfile() else None)
+        tracked,evidence=self.expected(stream.getvalue())
+        self.assertEqual(tracked,{path:self.output[path] for path in tracked})
+        self.assertEqual(tracked['data/tags.json'],self.files['data/tags.json'])
+        self.assertTrue(evidence['allExpectedRoutesLocallyVerified'])
+
+    def test_hidden_global_pax_bytes_cannot_escape_whole_archive_budget(self):
+        self.assertTrue(callable(site.expected_artifacts))
+        # This is a complete source-only archive that used to build successfully:
+        # regular bytes fit exactly, while hidden metadata alone exceeds the cap.
+        regular=sum(map(len,self.files.values()))
+        stream=io.BytesIO()
+        with tarfile.open(fileobj=io.BytesIO(self.archive()),mode='r:gz') as source,\
+             tarfile.open(fileobj=stream,mode='w:gz',format=tarfile.PAX_FORMAT,
+                          pax_headers={'comment':'x'*(regular+10000)}) as target:
+            for info in source:target.addfile(info,source.extractfile(info) if info.isfile() else None)
+        raw=stream.getvalue()
+        self.assertLess(len(raw),site.MAX_COMPRESSED_BYTES)
+        self.assertGreater(len(gzip.decompress(raw)),regular)
+        with patch.object(site,'MAX_ARCHIVE_BYTES',regular),self.assertRaisesRegex(RuntimeError,'archive.*inventory limit'):
+            self.expected(raw)
+
+    def test_whole_archive_budget_counts_padding_and_bytes_after_tar_eof(self):
+        self.assertTrue(callable(site.expected_artifacts))
+        expanded=gzip.decompress(self.archive())
+        # The unmodified expanded stream fits exactly, including its padding.
+        with patch.object(site,'MAX_ARCHIVE_BYTES',len(expanded)):
+            tracked,_=self.expected(gzip.compress(expanded))
+        self.assertEqual(tracked,{path:self.output[path] for path in tracked})
+        for concatenated,raw in enumerate((gzip.compress(expanded+b'\0'),
+                                           gzip.compress(expanded)+gzip.compress(b'\0'*512))):
+            with self.subTest(concatenated=bool(concatenated)),patch.object(site,'MAX_ARCHIVE_BYTES',len(expanded)),\
+                 self.assertRaisesRegex(RuntimeError,'archive.*inventory limit'):
+                self.expected(raw)
+
+    def test_hidden_extension_headers_count_toward_archive_member_cap(self):
+        self.assertTrue(callable(site.expected_artifacts))
+        records=[]
+        for n in range(25001):
+            pax=tarfile.TarInfo('global');pax.type=tarfile.XGLTYPE;pax.size=0
+            directory=tarfile.TarInfo('repo-'+'a'*40+'/docs/'+str(n));directory.type=tarfile.DIRTYPE
+            records.extend((pax.tobuf(),directory.tobuf()))
+        raw=gzip.compress(b''.join(records)+gzip.decompress(self.archive()))
+        self.assertLess(len(raw),site.MAX_COMPRESSED_BYTES)
+        self.assertLess(len(gzip.decompress(raw)),site.MAX_ARCHIVE_BYTES)
+        with self.assertRaisesRegex(RuntimeError,'archive.*inventory limit'):
+            self.expected(raw)
+
+    def test_inflation_is_bounded_and_deadline_checked_before_tar_parsing(self):
+        self.assertTrue(callable(site.expected_artifacts))
+        raw=self.archive();limit=2*64*1024+5;reads=[]
+        read=gzip.GzipFile.read
+        def bounded(stream,size=-1):
+            self.assertGreater(size,0);self.assertLessEqual(size,64*1024)
+            value=read(stream,size);reads.append(len(value));return value
+        with patch.object(site,'MAX_ARCHIVE_BYTES',limit),patch.object(gzip.GzipFile,'read',bounded),\
+             patch.object(tarfile.TarInfo,'_proc_member',side_effect=AssertionError('parser ran before inflation budget')),\
+             self.assertRaisesRegex(RuntimeError,'archive.*inventory limit'):
+            self.expected(raw)
+        self.assertEqual(sum(reads),limit+1)
+        clock=[0.0];self.settings['_deadline']=30
+        def expired(stream,size=-1):
+            value=read(stream,size);clock[0]=31;return value
+        with patch.object(site.time,'monotonic',side_effect=lambda:clock[0]),patch.object(gzip.GzipFile,'read',expired),\
+             patch.object(tarfile.TarInfo,'_proc_member',side_effect=AssertionError('expired inflation reached parser')),\
+             self.assertRaisesRegex(RuntimeError,'deadline'):
+            self.expected(raw)
+
+    def test_pax_assignments_count_even_when_hidden_keys_repeat(self):
+        self.assertTrue(callable(site.expected_artifacts))
+        pax=tarfile.TarInfo.create_pax_global_header({'key'+str(n):'value' for n in range(1000)})
+        records=[]
+        for n in range(51):
+            directory=tarfile.TarInfo('repo-'+'a'*40+'/docs/'+str(n));directory.type=tarfile.DIRTYPE
+            records.extend((pax,directory.tobuf()))
+        raw=gzip.compress(b''.join(records)+gzip.decompress(self.archive()))
+        with self.assertRaisesRegex(RuntimeError,'archive.*inventory limit'):
+            self.expected(raw)
+
+    def test_metadata_size_and_extension_chains_are_rejected_before_processing(self):
+        self.assertTrue(callable(site.expected_artifacts))
+        for kind,processor in ((tarfile.XGLTYPE,'_proc_pax'),(tarfile.XHDTYPE,'_proc_pax'),
+                               (tarfile.GNUTYPE_LONGNAME,'_proc_gnulong'),(tarfile.GNUTYPE_LONGLINK,'_proc_gnulong')):
+            for payload,declared in ((b'',site.MAX_ARCHIVE_BYTES+1),(b'x'*(64*1024+1),None)):
+                raw=self.metadata_archive(kind,payload,declared_size=declared)
+                with self.subTest(kind=kind,declared=declared),\
+                     patch.object(tarfile.TarInfo,processor,side_effect=AssertionError('oversized metadata was processed')),\
+                     self.assertRaisesRegex(RuntimeError,'archive.*inventory limit'):
+                    self.expected(raw)
+        for kind,payload in ((tarfile.XGLTYPE,b''),(tarfile.GNUTYPE_LONGNAME,('repo-'+'a'*40).encode()+b'\0')):
+            with self.subTest(chain=kind),self.assertRaisesRegex(RuntimeError,'archive.*(chain|inventory limit)'):
+                self.expected(self.metadata_archive(kind,payload,count=64))
+
+    def test_sparse_formats_fail_closed_before_sparse_processing(self):
+        self.assertTrue(callable(site.expected_artifacts))
+        raw=self.metadata_archive(tarfile.GNUTYPE_SPARSE,b'')
+        with patch.object(tarfile.TarInfo,'_proc_sparse',side_effect=AssertionError('GNU sparse was processed')),\
+             self.assertRaisesRegex(RuntimeError,'unsupported production archive sparse'):
+            self.expected(raw)
+        for headers in ({'GNU.sparse.map':'0,1'}, {'GNU.sparse.size':'1'},
+                        {'GNU.sparse.major':'1','GNU.sparse.minor':'0'},
+                        {'GNU.sparse.realsize':'1'}, {'GNU.sparse.name':'sparse'}):
+            payload=tarfile.TarInfo.create_pax_global_header(headers)
+            raw=gzip.compress(payload+gzip.decompress(self.archive()))
+            with self.subTest(headers=headers),\
+                 patch.object(tarfile.TarInfo,'_proc_gnusparse_00',side_effect=AssertionError('sparse 0.0 was processed')),\
+                 patch.object(tarfile.TarInfo,'_proc_gnusparse_01',side_effect=AssertionError('sparse 0.1 was processed')),\
+                 patch.object(tarfile.TarInfo,'_proc_gnusparse_10',side_effect=AssertionError('sparse 1.0 was processed')),\
+                 self.assertRaisesRegex(RuntimeError,'unsupported production archive sparse'):
+                self.expected(raw)
+
+    def test_deadline_is_checked_before_each_hidden_extension_processor(self):
+        self.assertTrue(callable(site.expected_artifacts))
+        header_method='_frombuf' if hasattr(tarfile.TarInfo,'_frombuf') else 'frombuf'
+        original=getattr(tarfile.TarInfo,header_method).__func__
+        for kind,processor in ((tarfile.XGLTYPE,'_proc_pax'),(tarfile.GNUTYPE_LONGNAME,'_proc_gnulong'),
+                               (tarfile.GNUTYPE_SPARSE,'_proc_sparse')):
+            raw=self.metadata_archive(kind,b'')
+            clock=[0.0];calls=[]
+            self.settings['_deadline']=30
+            def header(cls,*args,**kwargs):
+                info=original(cls,*args,**kwargs)
+                if info.type==kind:clock[0]=31
+                return info
+            process=getattr(tarfile.TarInfo,processor)
+            def processed(info,archive):
+                calls.append(info.type)
+                return process(info,archive)
+            with self.subTest(kind=kind),patch.object(site.time,'monotonic',side_effect=lambda:clock[0]),\
+                 patch.object(tarfile.TarInfo,header_method,classmethod(header)),\
+                 patch.object(tarfile.TarInfo,processor,processed),self.assertRaisesRegex(RuntimeError,'deadline'):
+                self.expected(raw)
+            self.assertEqual(calls,[], 'expired metadata must not reach its parser')
 
     def test_archive_redirect_path_traversal_byte_limits_and_deadline_fail_closed(self):
         self.expected()

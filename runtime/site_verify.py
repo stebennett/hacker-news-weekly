@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import argparse
 import base64
+from contextlib import contextmanager
+import gzip
 import io
 import json
 from pathlib import Path
@@ -18,6 +20,7 @@ import math
 import re
 import sys
 import time
+import zlib
 from urllib.error import URLError
 from urllib.parse import parse_qs, quote, urlencode, urlsplit
 from urllib.request import Request, HTTPRedirectHandler, build_opener
@@ -93,6 +96,81 @@ process.stdout.write(JSON.stringify({tracked,tagging:{verified:true,expectation:
 """
 
 
+@contextmanager
+def _bounded_archive(raw,remaining):
+    """Bound inflation before tarfile can consume hidden extension payloads.
+
+    The 128 MiB cap covers the WHOLE expanded gzip stream: tar headers, PAX/GNU
+    metadata, file padding and bytes after tar EOF, including concatenated gzip
+    members. Keep the independent regular-payload cap below as well. Inflation
+    uses bounded stdlib gzip reads (not tarfile's unbounded zlib stream path).
+    """
+    with tempfile.TemporaryFile() as expanded:
+        total=0
+        with gzip.GzipFile(fileobj=io.BytesIO(raw),mode='rb') as compressed:
+            while True:
+                remaining()
+                chunk=compressed.read(min(64*1024,MAX_ARCHIVE_BYTES-total+1))
+                remaining()
+                if not chunk:break
+                total+=len(chunk)
+                if total>MAX_ARCHIVE_BYTES:
+                    raise RuntimeError('production archive expanded inventory limit exceeded')
+                expanded.write(chunk)
+        expanded.seek(0)
+        records=0;extensions=0
+        def record():
+            nonlocal records
+            remaining();records+=1
+            if records>50000:
+                raise RuntimeError('production archive extracted inventory limit exceeded')
+
+        class BudgetTarInfo(tarfile.TarInfo):
+            # Extension handlers recurse internally before yielding a member.
+            # Hook their common dispatch, not just public fromtarfile/frombuf:
+            # CPython security updates can route recursion through private ones.
+            def _proc_member(self,archive):
+                nonlocal extensions
+                record()
+                if self.type==tarfile.GNUTYPE_SPARSE:
+                    raise RuntimeError('unsupported production archive sparse metadata')
+                if self.size<0 or archive.fileobj.tell()+self._block(self.size)>total:
+                    raise RuntimeError('production archive extracted inventory limit exceeded')
+                if self.type in (tarfile.XGLTYPE,tarfile.XHDTYPE,tarfile.SOLARIS_XHDTYPE,
+                                 tarfile.GNUTYPE_LONGNAME,tarfile.GNUTYPE_LONGLINK):
+                    extensions+=1
+                    # Codeload's commit comment/path/mtime need only small PAX
+                    # records. Bound each parser allocation and recursive chain,
+                    # rather than permitting a 128 MiB PAX field or deep stack.
+                    if self.size>64*1024 or extensions>8:
+                        raise RuntimeError('production archive metadata inventory limit exceeded')
+                    self._pax_keyword=True
+                else:
+                    extensions=0
+                member=super()._proc_member(archive)
+                remaining()
+                # PAX may replace the raw header's size. Validate the effective
+                # extent before extractfile/read can allocate or seek using it.
+                if member.size<0 or (member.isfile() and member.offset_data+self._block(member.size)>total):
+                    raise RuntimeError('production archive extracted inventory limit exceeded')
+                return member
+
+            def _decode_pax_field(self,value,*args):
+                remaining()
+                if self._pax_keyword:
+                    # Count PAX assignments too, including repeated/hidden keys.
+                    # Reject sparse keys before stdlib parses any sparse maps or
+                    # consumes sparse continuation records/reinterprets sizes.
+                    record()
+                    if value.startswith(b'GNU.sparse.'):
+                        raise RuntimeError('unsupported production archive sparse metadata')
+                self._pax_keyword=not self._pax_keyword
+                return super()._decode_pax_field(value,*args)
+
+        with tarfile.open(fileobj=expanded,mode='r:',tarinfo=BudgetTarInfo,stream=True) as archive:
+            yield archive
+
+
 def expected_artifacts(settings,context):
     """One capped immutable archive request, then complete *local* validation.
 
@@ -127,7 +205,7 @@ def expected_artifacts(settings,context):
         # empty extra input directories cannot hide new auto-loaded policy.
         input_dirs={str(parent) for name in installed for parent in Path(name).parents if str(parent)!='.'}
         try:
-            with tarfile.open(fileobj=io.BytesIO(raw),mode='r|gz') as archive:
+            with _bounded_archive(raw,remaining) as archive:
                 for member in archive:
                     remaining()
                     parts=member.name.rstrip('/').split('/')
@@ -168,7 +246,7 @@ def expected_artifacts(settings,context):
                         trusted_build.write_public(root/relative,data)
                     # Ignore transitional dist, never extract/use fetched output,
                     # code, schema, configuration or public/_headers as authority.
-        except (tarfile.TarError,OSError) as exc:
+        except (tarfile.TarError,OSError,EOFError,zlib.error) as exc:
             raise RuntimeError('invalid production archive') from exc
         if matched!=set(installed):
             raise RuntimeError('production build input inventory mismatch')
