@@ -13,7 +13,7 @@ import stat
 import subprocess
 import tempfile
 
-from .orchestrator import RuntimeError
+from .orchestrator import RuntimeError, _STAGE_SUPERVISOR, _WEBSITE_GROUP, _wait_unreaped
 
 
 INPUT_TREES = ('src', 'scripts', 'schema', 'public')
@@ -102,24 +102,60 @@ def stage(installed, root, inputs):
                 TWIHN_DATA_DIR=str(root / 'data'))
 
 
+def _outer_owns_group():
+    owner = os.environ.get(_WEBSITE_GROUP)
+    if owner is None:
+        return False
+    # An arbitrary/stale marker must never authorize killing/inheriting a
+    # caller's group. The adapter is a direct child of the attested worker,
+    # which is still its actual session and process-group leader.
+    try:
+        supervisor = int(os.environ.get(_STAGE_SUPERVISOR, ''))
+        if (supervisor <= 0 or str(supervisor) != os.environ[_STAGE_SUPERVISOR]
+                or supervisor == int(owner) or os.getpgid(supervisor) == int(owner)
+                or os.getsid(supervisor) == int(owner)
+                or owner != str(os.getppid()) or owner != str(os.getpgrp())
+                or owner != str(os.getsid(0)) or owner == str(os.getpid())
+                or os.getpgid(int(owner)) != int(owner)
+                or os.getsid(int(owner)) != int(owner)):
+            raise ValueError('mismatched group owner')
+        # Linux's exact-owner stat (never a process scan) confirms the claimed
+        # outer supervisor really is this worker's parent, not another session.
+        owner_parent = Path(f'/proc/{owner}/stat').read_text().rsplit(')', 1)[1].split()[1]
+        if owner_parent != str(supervisor):
+            raise ValueError('mismatched outer supervisor')
+    except (OSError, ValueError, OverflowError, IndexError) as exc:
+        raise RuntimeError('invalid website process supervisor') from exc
+    return True
+
+
 def run_node(node, args, root, env, remaining, *, max_output=20*1024*1024):
-    """Bound a whole Node process group, including build.mjs's Astro child."""
+    """Use the outer website group, or own/clean an isolated standalone group."""
     remaining()
+    own_group = not _outer_owns_group()
     try:
         with tempfile.TemporaryFile(dir=root / 'tmp') as output:
             with subprocess.Popen([node, *args], cwd=root, env=env, stdout=output,
                                   stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
-                                  start_new_session=True, umask=0o022) as process:
+                                  start_new_session=own_group, umask=0o022) as process:
                 try:
-                    process.wait(timeout=remaining())
-                except BaseException:
-                    # A timed-out build must not outlive the workspace/deadline.
+                    if own_group:
+                        _wait_unreaped(process, remaining())
+                    else:
+                        process.wait(timeout=remaining())
+                finally:
+                    # Keep managed descendants in the outer group even if this
+                    # adapter is SIGKILLed. Never kill that group from inside it.
+                    # For standalone calls, pin the leader PID until cleanup,
+                    # including when it exited successfully leaving descendants.
                     try:
-                        os.killpg(process.pid, signal.SIGKILL)
+                        if own_group:
+                            os.killpg(process.pid, signal.SIGKILL)
+                        elif process.returncode is None:
+                            process.kill()
                     except ProcessLookupError:
                         pass
                     process.wait()
-                    raise
                 remaining()
                 output.seek(0)
                 raw = output.read(max_output + 1)
