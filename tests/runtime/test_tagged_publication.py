@@ -96,6 +96,35 @@ def git(root, *args):
     return subprocess.check_output(['git', *args], cwd=root, env=env, stderr=subprocess.PIPE, timeout=30)
 
 
+def deploy(root, commit):
+    """Independent Pages-like release: exact merged source, real build/verifier.
+
+    This does not call site_verify's expectation builder or consume its output.
+    HTTP serves this fixture-owned release while readback independently rebuilds
+    from the exact-commit codeload archive with installed authority.
+    """
+    release = root / 'deployments' / commit
+    if (release / 'dist/build-manifest.json').is_file():
+        return release / 'dist'
+    release.parent.mkdir(exist_ok=True)
+    git(root, 'clone', '--no-checkout', '--no-hardlinks', str(root / 'origin.git'), str(release))
+    git(release, 'checkout', '--detach', commit)
+    assert git(release, 'rev-parse', 'HEAD').decode().strip() == commit
+    assert git(release, 'ls-files', 'dist') == b''
+    (release / 'node_modules').symlink_to(ROOT / 'node_modules', target_is_directory=True)
+    env = {key: os.environ[key] for key in ('PATH', 'HOME', 'TMPDIR', 'LANG', 'NODE_OPTIONS') if key in os.environ}
+    env.update(CI='true', ASTRO_TELEMETRY_DISABLED='1', TWIHN_SOURCE_REVISION='unversioned')
+    for script in ('scripts/build.mjs', 'scripts/verify-dist.mjs'):
+        result = subprocess.run([str(root / 'bin/node'), script], cwd=release, env=env,
+                                capture_output=True, timeout=180, umask=0o022)
+        log(root, 'deployment', dict(commit=commit, script=script, returncode=result.returncode,
+            stdout=result.stdout.decode(), stderr=result.stderr.decode()))
+        if result.returncode:
+            raise AssertionError('Independent deployment build failed: ' + result.stderr.decode())
+    assert git(release, 'status', '--porcelain') == b''
+    return release / 'dist'
+
+
 class LocalGitHub:
     """GitHub transport double backed by real local refs, commits and blobs."""
     def __init__(self, settings, write=False):
@@ -171,6 +200,7 @@ class LocalGitHub:
                         self.at('rev-parse', 'refs/heads/main').decode().strip())
         if method == 'GET' and path.startswith('/contents/'):
             name, commit = path.removeprefix('/contents/').split('?ref=')
+            assert unquote(name).startswith('data/'), 'Generated Git read forbidden'
             raw = self.at('show', commit + ':' + unquote(name))
             return dict(type='file', encoding='base64', content=base64.b64encode(raw).decode(),
                         sha=self.at('rev-parse', commit + ':' + unquote(name)).decode().strip())
@@ -199,6 +229,7 @@ class LocalGitHub:
                              '-m', 'Local fake GitHub merge').decode().strip()
             self.at('update-ref', 'refs/heads/main', commit, server['base'])
             write_json(self.root / 'server.json', dict(server, merged=True, commit=commit))
+            deploy(self.root, commit)
             return dict(merged=True, sha=commit)
         raise AssertionError(('unexpected API', method, path))
 
@@ -275,7 +306,7 @@ def boundary(root, action, argv):
             name = url.removeprefix('https://twihn.com/')
             if name.endswith('/'): name += 'index.html'
             commit = at('rev-parse', 'main').decode().strip()
-            return LocalResponse(url, at('show', commit + ':dist/' + name))
+            return LocalResponse(url, (deploy(root, commit) / name).read_bytes())
         site_verify.api = api
         site_verify.urlopen = http
         return site_verify.main(argv)
@@ -327,6 +358,7 @@ root=pathlib.Path({str(root)!r}); args=sys.argv[1:]
 with (root/'git.jsonl').open('a') as f:f.write(json.dumps(args)+'\\n')
 args=[str(root/'origin.git') if x=='https://github.com/offline/fixture.git' else x for x in args]
 assert not any(x.startswith(('https://','http://','ssh://','git@')) for x in args), args
+assert not any(':dist/' in x for x in args), 'Generated Git read forbidden'
 os.environ['GIT_ALLOW_PROTOCOL']='file'
 os.execv({real_git!r},[{real_git!r},*args])
 ''')
@@ -443,7 +475,11 @@ os.execv(sys.executable,[sys.executable,{str(Path(__file__).resolve())!r},'--bou
         return git(self.root / 'origin.git', 'rev-parse', 'main').decode().strip()
 
     def content(self, name):
+        assert name.startswith('data/'), 'Only canonical source facts may be read from Git'
         return git(self.root / 'origin.git', 'show', self.main() + ':' + name)
+
+    def public(self, name):
+        return (self.root / 'deployments' / self.main() / 'dist' / name).read_bytes()
 
     def publish(self, expected=0, **bindings):
         context = dict(issueId=self.issue.issue_id, revision=1, start=self.issue.start, end=self.issue.end,
@@ -460,6 +496,15 @@ class TaggedPublicationTests(unittest.TestCase):
     def setUpClass(cls):
         cls.temp = tempfile.TemporaryDirectory(prefix='twihn-tagged-e2e-')
         cls.addClassCleanup(cls.temp.cleanup)
+        def evidence():
+            target = os.environ.get('TWIHN_E2E_EVIDENCE')
+            if target:
+                for path in Path(cls.temp.name).rglob('*.jsonl'):
+                    if any(part in ('node_modules', '.git') for part in path.parts): continue
+                    destination = Path(target) / path.relative_to(cls.temp.name)
+                    destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                    shutil.copyfile(path, destination)
+        cls.addClassCleanup(evidence)
         cls.root = Path(cls.temp.name)
         cls.base = cls.root / 'base'
         cls.base.mkdir()
@@ -522,6 +567,8 @@ class TaggedPublicationTests(unittest.TestCase):
         cls.historical_public = {name: (cls.base / 'dist' / name).read_bytes() for name in cls.historical}
         git(cls.base, 'init', '--quiet', '--initial-branch=main'); git(cls.base, 'add', '-A')
         git(cls.base, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '--quiet', '-m', 'Retained tagged fixture archive')
+        if git(cls.base, 'ls-files', 'dist') != b'':
+            raise AssertionError('Base fixture must have zero tracked generated output')
         cls.success = None
 
     def fixture(self, name='case', published=False):
@@ -532,6 +579,7 @@ class TaggedPublicationTests(unittest.TestCase):
             # A retry restores the original frozen collection, including actual
             # collectedAt. Recollecting now is correctly NOT identical content.
             shutil.copytree(original.root / 'work', fixture.root / 'work')
+            shutil.copytree(original.root / 'deployments', fixture.root / 'deployments', symlinks=True)
         return fixture
 
     def successful(self):
@@ -601,8 +649,8 @@ class TaggedPublicationTests(unittest.TestCase):
         expected = [str(n) for n in range(30, 0, -1)] + [str(n) for n in range(230, 200, -1)] + [str(n) for n in range(130, 100, -1)]
         actual = []
         for page in range(1, 6):
-            name = 'dist/tags/ai/' + ('' if page == 1 else str(page) + '/') + 'index.html'
-            ids = re.findall(r'data-hn-id="([0-9]+)"', fixture.content(name).decode())
+            name = 'tags/ai/' + ('' if page == 1 else str(page) + '/') + 'index.html'
+            ids = re.findall(r'data-hn-id="([0-9]+)"', fixture.public(name).decode())
             self.assertEqual(ids, expected[(page - 1) * 20:page * 20])
             actual.extend(ids)
         self.assertEqual(actual, expected)
@@ -610,9 +658,9 @@ class TaggedPublicationTests(unittest.TestCase):
         for path, raw in self.historical.items():
             if path == 'data/tags.json': continue
             self.assertEqual(fixture.content(path), raw, path)
-            self.assertEqual(fixture.content('dist/' + path), self.historical_public[path], 'public retained ' + path)
+            self.assertEqual(fixture.public(path), self.historical_public[path], 'public retained ' + path)
         for date in ('2026-10-30', '2026-11-06', '2026-11-13'):
-            self.assertIn('data-hn-id=', fixture.content('dist/issues/' + date + '/index.html').decode())
+            self.assertIn('data-hn-id=', fixture.public('issues/' + date + '/index.html').decode())
         evidence = state['website']['evidence']
         self.assertEqual(evidence['commit'], fixture.main())
         self.assertEqual(evidence['deploymentEvidence'], 'cloudflare-check-run')
@@ -628,11 +676,22 @@ class TaggedPublicationTests(unittest.TestCase):
             self.assertEqual(path.parent.stat().st_mode & 0o777, 0o700)
         self.assertEqual((fixture.root / 'metadata/2026-11-13.json').stat().st_mode & 0o777, 0o600)
         self.assertEqual(fixture.state_path('reviewed.json').read_bytes(), (fixture.root / 'review.json').read_bytes())
-        self.assertTrue(all(fixture.content('data/stories/' + str(n) + '.json') == fixture.content('dist/data/stories/' + str(n) + '.json') for n in range(1, 31)))
+        self.assertTrue(all(fixture.content('data/stories/' + str(n) + '.json') == fixture.public('data/stories/' + str(n) + '.json') for n in range(1, 31)))
         self.assertFalse((fixture.root / 'unexpected-network').exists())
         expected_commands = [['--version'], ['ci', '--no-audit', '--no-fund'],
             ['run', 'check'], ['test'], ['run', 'build'], ['run', 'verify:dist']]
         self.assertEqual(rows(fixture.root, 'npm'), expected_commands)
+        server = json.loads((fixture.root / 'server.json').read_bytes())
+        expected_paths = {f'data/issues/{fixture.issue.issue_id}.json', 'data/tags.json',
+                          *{f'data/stories/{n}.json' for n in range(1, 31)}}
+        self.assertEqual({row['filename'] for row in LocalGitHub(fixture.settings).files(server['base'], server['head'])}, expected_paths)
+        for commit in (server['base'], server['head'], fixture.main()):
+            self.assertEqual(git(fixture.root / 'origin.git', 'ls-tree', '-r', '--name-only', commit, '--', 'dist'), b'')
+        self.assertTrue(all('/contents/dist/' not in row[1] for row in rows(fixture.root, 'api')))
+        self.assertTrue(all(not any(':dist/' in str(arg) for arg in row) for row in rows(fixture.root, 'git')))
+        deployment = rows(fixture.root, 'deployment')
+        self.assertEqual([(row['commit'], row['script'], row['returncode']) for row in deployment],
+            [(fixture.main(), script, 0) for script in ('scripts/build.mjs', 'scripts/verify-dist.mjs')])
         self.assertEqual([row[1:] for row in rows(fixture.root, 'processes')
             if row[0] == str(fixture.root / 'bin/npm')], expected_commands)
 
@@ -700,7 +759,8 @@ class TaggedPublicationTests(unittest.TestCase):
         result = fixture.publish()
         self.assertEqual(json.loads(result.stdout), dict(commit=before))
         self.assert_no_mutation(fixture, before)
-        self.assertEqual(rows(fixture.root, 'npm'), [['--version'], ['ci', '--no-audit', '--no-fund']])
+        self.assertEqual(rows(fixture.root, 'npm'), [])
+        self.assertFalse(any(Path(row[0]).name == 'npm' for row in rows(fixture.root, 'processes')))
         processes = rows(fixture.root, 'processes')
         self.assertTrue(any('scripts/verify-tag-changes.mjs' in row and '--idempotent' in row for row in processes))
         self.assertFalse(any('scripts/tagging.mjs' in row and 'apply' in row for row in processes))

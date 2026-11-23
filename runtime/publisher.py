@@ -27,7 +27,9 @@ from urllib.parse import quote, urlencode
 from .github_api import GitHub, GitHubError, repository
 from .orchestrator import Issue, RuntimeError, atomic, digest, instant, secure_directory
 from .site_verify import parity, strict_json
-from . import tagging
+from . import tagging, trusted_build
+
+ROOT = Path(__file__).resolve().parents[1]
 
 SHA = re.compile(r'[0-9a-f]{40}')
 PUBLIC_METADATA = {'issueId', 'scheduledAt', 'collectedAt', 'revision', 'qualifyingCounts', 'itemSources', 'ordinaryRankings'}
@@ -84,12 +86,12 @@ def snapshot(settings, context):
 
 def allowed_paths(paths, issue, selected_ids=()):
     canonical = f'data/issues/{issue}.json'
-    if canonical not in paths or not any(p.startswith('dist/') for p in paths):
-        raise RuntimeError('content changes must include canonical issue and generated dist')
+    if canonical not in paths:
+        raise RuntimeError('content changes must include canonical issue')
     for path in paths:
         story = re.fullmatch(r'data/stories/([1-9][0-9]*)\.json', path)
         if ('\\' in path or any(p in ('', '.', '..') for p in path.split('/')) or path.startswith('/') or
-                not (path == canonical or path.startswith('dist/') or path == 'data/tags.json' or
+                not (path == canonical or path == 'data/tags.json' or
                      story and story[1] in selected_ids)):
             raise RuntimeError('non-content changed path refused')
 
@@ -222,7 +224,7 @@ class Publisher:
     def current(self):
         return sha(self.api('GET', '/commits/main')['sha'])
 
-    def capture_tagging(self):
+    def capture_tagging(self, *, public=True):
         # Called only after the authoritative Node archive/diff validator. Include
         # reused records and the unchanged registry too, not just PR diff paths.
         paths=['data/tags.json',*[f'data/stories/{ident}.json' for ident in sorted(self.selected_ids)]]
@@ -230,14 +232,12 @@ class Publisher:
         for path in paths:
             raw=(self.cwd/path).read_bytes()
             strict_json(raw)
-            public='dist/'+path
-            if (self.cwd/public).read_bytes()!=raw:
+            if public and (self.cwd/('dist/'+path)).read_bytes()!=raw:
                 raise RuntimeError('validated source/public tagging blob differs')
-            for name in (path,public):
-                blob=hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
-                if name in getattr(self,'blobs',{}) and self.blobs[name]!=blob:
-                    raise RuntimeError('staged tagging blob differs from validated snapshot')
-                snapshot[name]=raw
+            blob=hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
+            if path in getattr(self,'blobs',{}) and self.blobs[path]!=blob:
+                raise RuntimeError('staged tagging blob differs from validated snapshot')
+            snapshot[path]=raw
         self.tag_bytes=snapshot
 
     def verify_issue(self, commit, expected):
@@ -246,8 +246,11 @@ class Publisher:
         for path,raw in self.tag_bytes.items():
             if self.content(commit,path)!=raw:
                 raise RuntimeError('production tagging blob differs from validated committed snapshot: '+path)
-        for path in (f'data/issues/{self.issue}.json', f'dist/data/issues/{self.issue}.json'):
-            value = strict_json(self.content(commit, path))
+        for path in (f'data/issues/{self.issue}.json',):
+            raw = self.content(commit, path)
+            if hasattr(self, 'issue_bytes') and raw != self.issue_bytes:
+                raise RuntimeError('canonical source blob differs from validated snapshot')
+            value = strict_json(raw)
             parity(value, self.context)
             if value != expected:
                 raise RuntimeError('canonical public metadata/content differs from frozen import')
@@ -255,6 +258,65 @@ class Publisher:
     def verify_tagging_copy(self, path):
         if tagging.read_private_bytes(path) != self.tagging:
             raise RuntimeError('frozen tagging copy differs from validated snapshot')
+
+    def recovery_inputs(self):
+        """Bind exact fetched build policy to installed authority; execute neither.
+
+        Checking only a script's absolute path is insufficient: content.mjs reads
+        schemas relative to cwd. Recovery always stages frozen installed inputs in
+        a fresh private directory, never over the downloaded checkout.
+        """
+        inputs = trusted_build.build_inputs(ROOT, self.remaining)
+        matched = set()
+        for entry in self.git('ls-tree', '-rz', '--full-tree', self.base).decode().split('\0'):
+            if not entry:
+                continue
+            descriptor, name = entry.split('\t', 1)
+            if not trusted_build.is_build_input(name):
+                continue
+            mode, kind, blob = descriptor.split()
+            if (mode != '100644' or kind != 'blob' or name not in inputs or
+                    self.git('cat-file', 'blob', blob) != inputs[name]):
+                raise RuntimeError('existing publication incompatible with installed build inputs')
+            matched.add(name)
+        if matched != set(inputs):
+            raise RuntimeError('existing publication incompatible with installed build inputs')
+        return inputs
+
+    def recover_existing(self, root, frozen_tagging, frozen, metadata, generated):
+        inputs = self.recovery_inputs()
+        trusted = root / 'trusted-validation'
+        trusted.mkdir(mode=0o700)
+        env = trusted_build.stage(ROOT, trusted, inputs)
+        node_path = Path(self.settings['node'])
+        if not node_path.is_absolute():
+            raise RuntimeError('absolute pinned Node executable required')
+        node = str(node_path.resolve())
+
+        def run(args):
+            code, output = trusted_build.run_node(node, args, trusted, env, self.remaining)
+            if code:
+                raise RuntimeError('installed publication validation failed')
+            return output
+
+        pin = inputs['.node-version'].decode().strip()
+        if (run(['--version']).decode().strip() != 'v' + pin or
+                strict_json(inputs['package.json'])['engines']['node'] != pin):
+            raise RuntimeError('Node version differs from installed production pin')
+        run(['scripts/import-legacy.mjs', str(frozen), str(metadata), str(generated)])
+        expected = strict_json(generated.read_bytes())
+        parity(expected, self.context)
+        destination = self.cwd / f'data/issues/{self.issue}.json'
+        if strict_json(destination.read_bytes()) != expected:
+            raise RuntimeError('existing issue immutable; changed content requires human correction')
+        self.verify_tagging_copy(frozen_tagging)
+        run(['scripts/verify-tag-changes.mjs', '--repository', str(self.cwd), '--base', self.base,
+             '--sidecar', str(frozen_tagging), '--issue', str(generated), '--idempotent'])
+        self.verify_tagging_copy(frozen_tagging)
+        self.issue_bytes = destination.read_bytes()
+        self.capture_tagging(public=False)
+        self.verify_issue(self.base, expected)
+        return expected, True
 
     def prepare(self, root):
         root = secure_directory(root)
@@ -269,6 +331,16 @@ class Publisher:
         if self.git('rev-parse', 'FETCH_HEAD').decode().strip() != self.base:
             raise RuntimeError('production main moved during checkout; retry')
         self.git('checkout', '--detach', self.base)
+        frozen = root / 'reviewed.json'
+        atomic(frozen, self.reviewed)
+        self.context['reviewed'] = str(frozen)
+        metadata = root / 'metadata.json'
+        atomic(metadata, json.dumps(self.metadata).encode())
+        generated = root / 'canonical.json'
+        destination = self.cwd / f'data/issues/{self.issue}.json'
+        # No npm (not even --version), downloaded script or schema on recovery.
+        if destination.exists():
+            return self.recover_existing(root, frozen_tagging, frozen, metadata, generated)
         package = json.loads((self.cwd / 'package.json').read_bytes())
         node = str(Path(self.settings['node']).resolve())
         npm = str(Path(self.settings['npm']).absolute())
@@ -282,28 +354,12 @@ class Publisher:
         if package['engines']['node'] != (self.cwd / '.node-version').read_text().strip():
             raise RuntimeError('inconsistent production toolchain pins')
         self.run([npm, 'ci', '--no-audit', '--no-fund'], limit=180)
-        frozen = root / 'reviewed.json'
-        frozen.write_bytes(self.reviewed)
-        self.context['reviewed'] = str(frozen)
-        metadata = root / 'metadata.json'
-        metadata.write_text(json.dumps(self.metadata))
-        generated = root / 'canonical.json'
         self.run([node, 'scripts/import-legacy.mjs', str(frozen), str(metadata), str(generated)])
         expected = json.loads(generated.read_bytes())
         parity(expected, self.context)
         destination = self.cwd / f'data/issues/{self.issue}.json'
         validate_tags = [node, 'scripts/verify-tag-changes.mjs', '--base', self.base,
                          '--sidecar', str(frozen_tagging), '--issue', str(generated)]
-        if destination.exists():
-            if json.loads(destination.read_bytes()) != expected:
-                raise RuntimeError('existing issue immutable; changed content requires human correction')
-            # Read-only semantic compatibility with the complete existing archive;
-            # exact production tag artifact readback is a separate verification gate.
-            self.verify_tagging_copy(frozen_tagging)
-            self.run([*validate_tags, '--idempotent'])
-            self.capture_tagging()
-            self.verify_issue(self.base, expected)
-            return expected, True
         destination.write_bytes(generated.read_bytes())
         destination.chmod(0o644)
         self.verify_tagging_copy(frozen_tagging)
@@ -321,11 +377,6 @@ class Publisher:
         modes = self.git('ls-files', '--stage', '-z').decode().rstrip('\0').split('\0')
         if any(line.split(' ', 1)[0] != '100644' for line in modes if line.split('\t', 1)[-1] in self.paths):
             raise RuntimeError('nonregular content file refused')
-        for path in self.paths:
-            if path.startswith('dist/data/issues/') or path.startswith('dist/data/revisions/'):
-                old = self.run(['git', 'ls-tree', self.base, '--', path]).decode()
-                if old and path != f'dist/data/issues/{self.issue}.json':
-                    raise RuntimeError('historic issue/revision changed')
         self.blobs = {p: self.git('rev-parse', ':' + p).decode().strip() for p in self.paths}
         # Validate the complete final archive AFTER lifecycle/build scripts;
         # staged blobs must also match this exact validated worktree.
@@ -334,6 +385,9 @@ class Publisher:
         self.verify_tagging_copy(frozen_tagging)
         self.git('diff', '--exit-code', '--')
         self.capture_tagging()
+        self.issue_bytes = destination.read_bytes()
+        if (self.cwd / f'dist/data/issues/{self.issue}.json').read_bytes() != self.issue_bytes:
+            raise RuntimeError('validated source/public issue blob differs')
         self.git('-c', 'user.name=TWIHN publisher', '-c', 'user.email=publisher@users.noreply.github.com',
                  '-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '-m', f'content: weekly issue {self.issue}')
         self.head = sha(self.git('rev-parse', 'HEAD').decode().strip())
@@ -427,7 +481,7 @@ class Publisher:
             if not prs:
                 strict_policy(self.github, self.settings)
             pr = prs[0] if prs else self.api('POST', '/pulls', {'title': f'content: weekly issue {self.issue}',
-                'body': 'Validated initial weekly content and deterministic generated site only.',
+                'body': 'Validated initial weekly source content only.',
                 'head': self.branch, 'base': 'main', 'draft': False, 'maintainer_can_modify': False})
             number = int(pr['number'])
             while True:

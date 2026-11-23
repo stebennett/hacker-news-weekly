@@ -25,9 +25,7 @@ async function setup(t, {additions = true, existing = false} = {}) {
   // Preserve even deliberately noncanonical unchanged historical bytes.
   await writeFile(path.join(dataDir,'stories/2.json'),` ${JSON.stringify(archive.records[1])}\n\n`);
   await writeFile(path.join(dataDir,'tags.json'),JSON.stringify(archive.registry));
-  await mkdir(path.join(repo,'dist/data/issues'),{recursive:true});
-  await writeFile(path.join(repo,'dist/data/issues/2026-11-13.json'),stableJSON(archive.issues[0]));
-  await writeFile(path.join(repo,'dist/index.html'),'old site');
+  await writeFile(path.join(repo,'.gitignore'),'dist/\n');
   await writeFile(path.join(repo,'source.mjs'),'// human source\n');
   const issue = structuredClone(previous);
   issue.issueId = '2026-11-20'; issue.scheduledAt = '2026-11-20T08:00:00Z'; issue.collectedAt = issue.scheduledAt;
@@ -54,7 +52,7 @@ async function setup(t, {additions = true, existing = false} = {}) {
   git(repo,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','--quiet','-m','base');
   const base = git(repo,'rev-parse','HEAD').trim();
   if (!existing) await apply();
-  if (!existing) await writeFile(path.join(repo,'dist/index.html'),'full rebuilt site');
+  assert.equal(git(repo,'ls-files','dist').trim(),'');
   const options = {repository:repo,base,sidecar,issuePath,idempotent:existing};
   return {root,repo,dataDir,archive,issue,frozen,next,sidecar,issuePath,options};
 }
@@ -106,7 +104,7 @@ for (const [name,mutate,pattern] of [
   ['history whitespace rewrite',s=>replaceJSON(s,'data/stories/2.json',()=>{}),/bytes|histor|expected|unjustified/i],
   ['historic issue edit',s=>replaceJSON(s,'data/issues/2026-11-13.json',v=>{v.items['1'].story='Changed';}),/historic|unauthorized|non-content/i],
   ['retained revision edit',s=>replaceJSON(s,'data/revisions/2026-11-13/v1.json',v=>{v.items['1'].story='Changed';}),/historic|unauthorized|non-content/i],
-  ['historic generated issue edit',s=>writeFile(path.join(s.repo,'dist/data/issues/2026-11-13.json'),'{}'),/historic/i],
+  ['staged generated issue',async s=>{await mkdir(path.join(s.repo,'dist/data/issues'),{recursive:true});await writeFile(path.join(s.repo,'dist/data/issues/2026-11-13.json'),'{}');git(s.repo,'add','-f','dist');},/unauthorized|non-content/i],
   ['source path',s=>writeFile(path.join(s.repo,'source.mjs'),'changed'),/unauthorized|non-content/i],
   ['new source path',s=>writeFile(path.join(s.repo,'extra.mjs'),'new source'),/unauthorized|non-content/i],
   ['delete',s=>rm(path.join(s.dataDir,'stories/2.json')),/delet|missing|expected/i],
@@ -114,7 +112,7 @@ for (const [name,mutate,pattern] of [
   ['symlink',async s=>{const file=path.join(s.dataDir,'stories/3.json');await rm(file);await symlink(s.issuePath,file);},/symlink|regular/i],
   ['executable mode',s=>chmod(path.join(s.dataDir,'stories/3.json'),0o755),/mode|regular/i],
   ['private source mode',s=>chmod(path.join(s.dataDir,'stories/2.json'),0o600),/mode|regular/i],
-  ['generated symlink',async s=>{const file=path.join(s.repo,'dist/index.html');await rm(file);await symlink(s.issuePath,file);},/symlink|regular/i],
+  ['staged generated symlink',async s=>{await mkdir(path.join(s.repo,'dist'),{recursive:true});await symlink(s.issuePath,path.join(s.repo,'dist/index.html'));git(s.repo,'add','-f','dist');},/unauthorized|non-content/i],
   ['stale base',async s=>{git(s.repo,'add','-A');git(s.repo,'-c','user.name=Test','-c','user.email=test@example.invalid','commit','--quiet','-m','moved');},/base|HEAD/i],
   ['imported issue tamper',s=>replaceJSON(s,`data/issues/${s.issue.issueId}.json`,v=>{v.collectedAt='2026-11-20T09:00:00Z';}),/imported|issue|expected/i],
 ]) test(`record authorization rejects ${name}`,async t=>{
@@ -133,7 +131,6 @@ test('full historical base must already have complete tagging; weekly is not a b
   await writeFile(path.join(s.dataDir,'issues',`${s.issue.issueId}.json`),stableJSON(s.issue));
   for(const record of s.next.records) await writeFile(path.join(s.dataDir,'stories',`${record.id}.json`),stableJSON(record));
   await writeFile(path.join(s.dataDir,'tags.json'),stableJSON(s.next.registry));
-  await writeFile(path.join(s.repo,'dist/index.html'),'changed');
   const module=await import(moduleURL); assert.equal(typeof module.verifyTagChanges,'function');
   await assert.rejects(module.verifyTagChanges(s.options),/coverage|base/i);
 });
@@ -181,6 +178,19 @@ test('CLI verifier accepts BOM and escaped nonduplicate private JSON without rew
   const result=spawnSync(process.execPath,['scripts/verify-tag-changes.mjs','--repository',s.repo,'--base',s.options.base,'--sidecar',s.sidecar,'--issue',s.issuePath],{encoding:'utf8',timeout:15000});
   assert.equal(result.status,0,result.stderr); assert.equal(result.stdout,'');
   assert.deepEqual(await readFile(s.sidecar),sidecarBytes); assert.deepEqual(await readFile(s.issuePath),issueBytes);
+});
+
+test('ignored local build output is allowed, but any force-staged generated path is forbidden', async t => {
+  const s=await setup(t); await mkdir(path.join(s.repo,'dist'));
+  await writeFile(path.join(s.repo,'dist/index.html'),'locally built output');
+  await verify(s);
+  git(s.repo,'add','-f','dist/index.html');
+  await assert.rejects(verify(s),/unauthorized|non-content/i);
+});
+
+test('missing canonical issue cannot be authorized by registry and story changes alone', async t => {
+  const s=await setup(t); await rm(path.join(s.dataDir,'issues',`${s.issue.issueId}.json`));
+  await assert.rejects(verify(s),/include current issue/i);
 });
 
 test('CLI uses explicit local exact base, has strict arguments and sanitized diagnostics', async t => {

@@ -56,7 +56,7 @@ class PublisherTests(unittest.TestCase):
         self.github = self.github_type.return_value
         self.github.write = True
         self.publisher = pub.Publisher(self.settings, self.context)
-        self.paths = [f'data/issues/{issue.issue_id}.json', f'dist/data/issues/{issue.issue_id}.json', 'dist/index.html']
+        self.paths = [f'data/issues/{issue.issue_id}.json']
         self.blobs = {p: str(i + 1) * 40 for i, p in enumerate(self.paths)}
         self.calls = []
         self.parameters = dict(strict_required_status_checks_policy=True,
@@ -260,6 +260,13 @@ class PublisherTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError): self.publish()
                 self.assertFalse(any(method == 'PUT' for method, _, _ in self.calls))
 
+    def test_server_dist_path_is_rejected_even_with_canonical_issue_and_matching_blobs(self):
+        self.paths += ['dist/index.html']
+        self.blobs['dist/index.html'] = 'd' * 40
+        with self.assertRaisesRegex(RuntimeError, 'non-content'):
+            self.publish()
+        self.assertFalse(any(method == 'PUT' for method, _, _ in self.calls))
+
     def test_existing_matching_branch_and_pr_recovered_without_push(self):
         self.duplicate = True
         result, _ = self.publish()
@@ -378,8 +385,8 @@ class PublisherTests(unittest.TestCase):
         context = dict(self.context, revision=2)
         with self.assertRaises(RuntimeError): pub.snapshot(self.settings, context)
 
-    def test_all_changed_paths_including_dist_are_exact(self):
-        for paths in ([self.paths[0]], self.paths + ['package.json'], self.paths + ['data/revisions/x.json'], self.paths + ['dist/../runtime/x'], self.paths + ['dist\\evil']):
+    def test_all_changed_paths_are_source_only_and_exact(self):
+        for paths in ([], ['data/tags.json'], self.paths + ['dist/index.html'], self.paths + ['dist/data/issues/2026-11-13.json'], self.paths + ['package.json'], self.paths + ['data/revisions/x.json'], self.paths + ['dist/../runtime/x'], self.paths + ['dist\\evil']):
             with self.assertRaises(RuntimeError): pub.allowed_paths(paths, self.context['issueId'])
         pub.allowed_paths(self.paths, self.context['issueId'])
 
@@ -396,7 +403,7 @@ class PublisherTests(unittest.TestCase):
         p=self.publisher
         expected={'data/tags.json':b'{"schemaVersion":1,"tags":[{"slug":"ai","label":"AI"}]}',
                   **{f'data/stories/{ident}.json':json.dumps(dict(schemaVersion=1,id=ident,tagSlugs=['ai'],issueIds=['2026-11-13'])).encode() for ident in p.selected_ids}}
-        p.tag_bytes={path:raw for source,raw in expected.items() for path in (source,'dist/'+source)}
+        p.tag_bytes=dict(expected)
         issue_raw=json.dumps(self.public).encode();seen=[]
         def content(commit,path):
             self.assertEqual(commit,MERGED);seen.append(path)
@@ -405,7 +412,8 @@ class PublisherTests(unittest.TestCase):
         with patch.object(p,'content',side_effect=content):p.verify_issue(MERGED,self.public)
         self.assertTrue(set(p.tag_bytes)<=set(seen))
         # Same JSON meaning is not the exact blob that was validated/committed.
-        for wrong in ('data/tags.json','dist/data/tags.json','data/stories/1.json','dist/data/stories/1.json'):
+        self.assertTrue(all(not path.startswith('dist/') for path in seen))
+        for wrong in ('data/tags.json','data/stories/1.json'):
             def changed(commit,path):return content(commit,path)+(b' ' if path==wrong else b'')
             with self.subTest(path=wrong),patch.object(p,'content',side_effect=changed),self.assertRaisesRegex(RuntimeError,'tagging blob differs'):
                 p.verify_issue(MERGED,self.public)
@@ -418,8 +426,8 @@ class PublisherTests(unittest.TestCase):
         original_prepare=self.prepare
         tagged={'data/tags.json':json.dumps(dict(schemaVersion=1,tags=[dict(slug='ai',label='AI'),dict(slug='security',label='Security')])).encode(),
                 **{f'data/stories/{ident}.json':json.dumps(dict(schemaVersion=1,id=ident,tagSlugs=['ai','security'],issueIds=[self.context['issueId']])).encode() for ident in self.publisher.selected_ids}}
-        expected={path:raw for source,raw in tagged.items() for path in (source,'dist/'+source)}
-        self.paths+=['data/tags.json','data/stories/1.json','dist/data/tags.json','dist/data/stories/1.json']
+        expected=dict(tagged)
+        self.paths+=['data/tags.json','data/stories/1.json']
         for path in self.paths:
             raw=expected.get(path,b'not a tag')
             self.blobs[path]=hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
@@ -436,7 +444,7 @@ class PublisherTests(unittest.TestCase):
                 return dict(type='file',encoding='base64',sha=blob,content=base64.b64encode(raw).decode())
             return old_api(method,path,payload)
         self.assertTrue(callable(self.publisher.verify_issue))
-        for wrong in (None,'data/tags.json','data/stories/1.json','dist/data/stories/1.json'):
+        for wrong in (None,'data/tags.json','data/stories/1.json'):
             self.merged=False;self.calls=[];reads=[];corrupt[0]=wrong
             with self.subTest(path=wrong),patch.object(self.publisher,'prepare',side_effect=prepare),patch.object(self.publisher,'git',side_effect=self.git),patch.object(self.publisher,'api',side_effect=api):
                 if wrong:
@@ -452,7 +460,8 @@ class PublisherTests(unittest.TestCase):
         (_,exists),_,_=self.prepared_fixture()
         self.assertFalse(exists)
         p=self.publisher;path='data/stories/1.json'
-        self.assertEqual(p.tag_bytes[path],p.tag_bytes['dist/'+path])
+        self.assertEqual(p.tag_bytes[path],(p.cwd/('dist/'+path)).read_bytes())
+        self.assertTrue(all(not name.startswith('dist/') for name in p.tag_bytes))
         p.blobs[path]='f'*40
         with self.assertRaisesRegex(RuntimeError,'staged tagging blob'):
             p.capture_tagging()
@@ -460,9 +469,9 @@ class PublisherTests(unittest.TestCase):
     def test_content_blob_checksum_required(self):
         raw = b'{}'; blob = hashlib.sha1(b'blob 2\0{}').hexdigest()
         with patch.object(self.publisher, 'api', return_value=dict(type='file', encoding='base64', content=base64.b64encode(raw).decode(), sha=blob)):
-            self.assertEqual(self.publisher.content(BASE, 'dist/a.json'), raw)
+            self.assertEqual(self.publisher.content(BASE, 'data/tags.json'), raw)
         with patch.object(self.publisher, 'api', return_value=dict(type='file', encoding='base64', content='e30=', sha=HEAD)), self.assertRaises(RuntimeError):
-            self.publisher.content(BASE, 'dist/a.json')
+            self.publisher.content(BASE, 'data/tags.json')
 
     def test_subprocess_deadline_and_secrets_not_forwarded(self):
         with patch.object(pub.subprocess, 'run', return_value=subprocess.CompletedProcess([], 1, b'', b'PRIVATE')) as run:
@@ -482,7 +491,7 @@ class PublisherTests(unittest.TestCase):
         self.github_type.assert_called_with(self.settings, write=True)
         self.assertTrue(all(call.args[0] == 'GET' for call in self.github.request.call_args_list))
 
-    def prepared_fixture(self, existing=None, extra_source=False, moved=False, validator_error=False, mutate_sidecar=False, tamper_frozen=False):
+    def prepared_fixture(self, existing=None, extra_source=False, extra_dist=False, moved=False, validator_error=False, mutate_sidecar=False, tamper_frozen=False):
         p = self.publisher
         node, npm = self.root / 'node', self.root / 'npm'
         node.touch(); npm.touch()
@@ -507,7 +516,7 @@ class PublisherTests(unittest.TestCase):
                     (p.cwd / self.paths[0]).write_text(json.dumps(existing))
             if args[:2] == ('rev-parse', 'FETCH_HEAD'): return (HEAD if moved else BASE).encode()
             if args[:2] == ('diff', '--cached'):
-                paths = self.paths + (['runtime/source.py'] if extra_source else [])
+                paths = self.paths + (['runtime/source.py'] if extra_source else []) + (['dist/index.html'] if extra_dist else [])
                 if '--name-only' in args: return ('\0'.join(paths) + '\0').encode()
                 return ''.join('A\0' + path + '\0' for path in paths).encode()
             if args[0] == 'ls-files': return ''.join('100644 ' + self.blobs[path] + ' 0\t' + path + '\0' for path in self.paths).encode()
@@ -520,6 +529,10 @@ class PublisherTests(unittest.TestCase):
             if argv == [str(node), '--version']: return b'v22.23.4\n'
             if argv == [str(npm), '--version']: return b'12.0.2\n'
             if 'scripts/import-legacy.mjs' in argv: Path(argv[-1]).write_text(json.dumps(self.public))
+            if argv[1:] == ['run', 'build']:
+                destination = p.cwd / ('dist/' + self.paths[0])
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes((p.cwd / self.paths[0]).read_bytes())
             if 'scripts/tagging.mjs' in argv or 'scripts/verify-tag-changes.mjs' in argv:
                 frozen = Path(argv[argv.index('--sidecar') + 1])
                 self.assertEqual(frozen.read_bytes(), self.tagraw)
@@ -531,7 +544,15 @@ class PublisherTests(unittest.TestCase):
                 raise RuntimeError('semantic tag diff refused')
             return b''
         buildroot = self.root / 'isolated'; buildroot.mkdir()
-        with patch.object(p, 'git', side_effect=git), patch.object(p, 'run', side_effect=run), patch.object(p, 'current', return_value=BASE), patch.object(p, 'verify_issue') as verify:
+        inputs = {'.node-version': b'22.23.4\n', 'package.json': b'{"engines":{"node":"22.23.4"}}'}
+        def trusted_run(node, args, cwd, env, remaining):
+            self.assertNotEqual(cwd, p.cwd)
+            self.assertFalse(cwd.is_relative_to(p.cwd))
+            self.assertEqual(cwd.name, 'trusted-validation')
+            return 0, run([node, *args])
+        with patch.object(p, 'git', side_effect=git), patch.object(p, 'run', side_effect=run), patch.object(p, 'current', return_value=BASE), patch.object(p, 'verify_issue') as verify, \
+             patch.object(p, 'recovery_inputs', return_value=inputs), patch.object(pub.trusted_build, 'stage', return_value={}), \
+             patch.object(pub.trusted_build, 'run_node', side_effect=trusted_run):
             result = p.prepare(buildroot)
         return result, commands, verify
 
@@ -587,7 +608,7 @@ class PublisherTests(unittest.TestCase):
             shutil.copytree(source / name, origin / name)
         for name in ['package.json', '.node-version']:
             shutil.copyfile(source / name, origin / name)
-        (origin / '.gitignore').write_text('node_modules\n')
+        (origin / '.gitignore').write_text('node_modules\ndist/\n')
         (origin / 'node_modules').symlink_to(source / 'node_modules', target_is_directory=True)
         for name in ['issues', 'revisions', 'stories']:
             (origin / 'data' / name).mkdir(parents=True)
@@ -623,7 +644,8 @@ class PublisherTests(unittest.TestCase):
                 if argv[1:] == ['run', 'build']:
                     (p.cwd / 'dist').mkdir()
                     (p.cwd / 'dist/index.html').write_text('offline generated fixture')
-                    (p.cwd/'dist/data').mkdir()
+                    (p.cwd/'dist/data/issues').mkdir(parents=True)
+                    shutil.copyfile(p.cwd / self.paths[0], p.cwd / ('dist/' + self.paths[0]))
                     shutil.copyfile(p.cwd/'data/tags.json',p.cwd/'dist/data/tags.json')
                     shutil.copytree(p.cwd/'data/stories',p.cwd/'dist/data/stories')
                 return b''
@@ -640,11 +662,115 @@ class PublisherTests(unittest.TestCase):
         self.assertEqual(json.loads((p.cwd / 'data/stories/1.json').read_bytes())['issueIds'], ['2026-11-06', '2026-11-13'])
         self.assertEqual((p.cwd / 'data/issues/2026-11-06.json').read_bytes(), (origin / 'data/issues/2026-11-06.json').read_bytes())
 
+    def real_recovery(self, fault=None):
+        source = Path(__file__).resolve().parents[2]
+        origin = self.root / ('recovery-origin-' + str(len(list(self.root.glob('recovery-origin-*')))))
+        origin.mkdir()
+        for name, raw in pub.trusted_build.build_inputs(source, lambda: 30).items():
+            pub.trusted_build.write_public(origin / name, raw)
+        registry = dict(schemaVersion=1, tags=[dict(slug='ai', label='AI'), dict(slug='security', label='Security')])
+        files = {'data/tags.json': registry, f'data/issues/{self.context["issueId"]}.json': self.public}
+        for ident in self.publisher.selected_ids:
+            files[f'data/stories/{ident}.json'] = dict(schemaVersion=1, id=ident,
+                tagSlugs=['ai', 'security'], issueIds=[self.context['issueId']])
+        marker = self.root / 'fetched-code-executed'
+        if fault == 'immutable':
+            files[f'data/issues/{self.context["issueId"]}.json'] = copy.deepcopy(self.public)
+            files[f'data/issues/{self.context["issueId"]}.json']['items']['1']['story'] = 'Unapproved edit.'
+        pub.trusted_build.write_public(origin / 'data/revisions/.gitkeep', b'')
+        for name, value in files.items():
+            pub.trusted_build.write_public(origin / name, json.dumps(value).encode())
+        if fault in ('script', 'schema', 'package-hook'):
+            if fault == 'script':
+                path = origin / 'scripts/import-legacy.mjs'
+                path.write_text(f"import {{writeFileSync}} from 'node:fs';writeFileSync({json.dumps(str(marker))},'BAD');\n")
+            elif fault == 'schema':
+                path = origin / 'schema/issue.schema.json'
+                value = json.loads(path.read_bytes()); value['$comment'] = str(marker); path.write_text(json.dumps(value))
+            else:
+                path = origin / 'package.json'
+                value = json.loads(path.read_bytes())
+                value['scripts']['preinstall'] = f'node -e "require(\'fs\').writeFileSync(\'{marker}\',\'BAD\')"'
+                path.write_text(json.dumps(value))
+        def at(*args):
+            return subprocess.check_output(['git', *args], cwd=origin, stderr=subprocess.DEVNULL, timeout=15)
+        at('init', '--quiet', '--initial-branch=main'); at('add', '-A')
+        at('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '--quiet', '-m', 'source-only recovery')
+        base = at('rev-parse', 'HEAD').decode().strip()
+        self.assertEqual(at('ls-files', 'dist'), b'')
+        p = pub.Publisher(self.settings, self.context)
+        p.settings.update(node=shutil.which('node'), npm='/does/not/exist/npm')
+        if fault == 'frozen':
+            value = json.loads(p.tagging); value['assignments']['1'] = ['ai']
+            p.tagging = json.dumps(value).encode()
+        original_git, original_run, original_inputs = p.git, p.run, p.recovery_inputs
+        def recovery_inputs():
+            inputs = original_inputs()
+            if fault == 'checkout-race':
+                # A binding/read race cannot turn cwd-relative fetched schemas
+                # or a checked-out script into recovery validator authority.
+                (p.cwd / 'scripts/import-legacy.mjs').write_text(
+                    f"import {{writeFileSync}} from 'node:fs';writeFileSync({json.dumps(str(marker))},'BAD');\n")
+                (p.cwd / 'schema/issue.schema.json').write_text('{}')
+            return inputs
+        commands, reads = [], []
+        def local_git(*args):
+            commands.append(args)
+            if args[:3] == ('remote', 'add', 'origin'):
+                return original_git('remote', 'add', 'origin', str(origin))
+            return original_git(*args)
+        def run(argv, **kwargs):
+            self.assertNotIn('npm', Path(argv[0]).name)
+            return original_run(argv, **kwargs)
+        def content(commit, name):
+            self.assertEqual(commit, base); self.assertTrue(name.startswith('data/'))
+            reads.append(name); return at('show', commit + ':' + name)
+        workspace = self.root / ('recovery-work-' + origin.name); workspace.mkdir()
+        before = {name: (origin / name).read_bytes() for name in files}
+        with patch.object(p, 'git', side_effect=local_git), patch.object(p, 'run', side_effect=run), \
+             patch.object(p, 'current', return_value=base), patch.object(p, 'content', side_effect=content), \
+             patch.object(p, 'recovery_inputs', side_effect=recovery_inputs):
+            if fault == 'dependencies':
+                installed = self.root / 'installed-without-dependencies'; installed.mkdir()
+                for name, raw in pub.trusted_build.build_inputs(source, lambda: 30).items():
+                    pub.trusted_build.write_public(installed / name, raw)
+                with patch.object(pub, 'ROOT', installed):
+                    with self.assertRaisesRegex(RuntimeError, 'dependencies required; no automatic install'):
+                        p.prepare(workspace)
+            elif fault:
+                with self.assertRaisesRegex(RuntimeError, 'incompatible' if fault in ('script', 'schema', 'package-hook') else 'immutable' if fault == 'immutable' else 'installed publication validation failed'):
+                    p.prepare(workspace)
+            else:
+                expected, exists = p.prepare(workspace)
+                self.assertTrue(exists); self.assertEqual(expected, self.public)
+                self.assertEqual(set(reads), set(files))
+                self.assertFalse((p.cwd / 'dist').exists())
+        if fault == 'checkout-race':
+            self.assertEqual(json.loads((workspace / 'canonical.json').read_bytes()), self.public)
+        self.assertFalse(marker.exists())
+        self.assertFalse(any('commit' in args or 'push' in args or 'add' == args[0] for args in commands))
+        for name, raw in before.items(): self.assertEqual((origin / name).read_bytes(), raw)
+
+    def test_real_source_only_recovery_installed_importer_and_complete_diff_no_npm(self):
+        self.real_recovery()
+
+    def test_real_recovery_refuses_fetched_script_schema_hooks_without_execution(self):
+        for fault in ('script', 'schema', 'package-hook', 'checkout-race'):
+            with self.subTest(fault=fault): self.real_recovery(fault)
+
+    def test_real_recovery_missing_dependencies_never_installs(self):
+        self.real_recovery('dependencies')
+
+    def test_real_recovery_preserves_immutable_review_and_frozen_assignments(self):
+        for fault in ('immutable', 'frozen'):
+            with self.subTest(fault=fault): self.real_recovery(fault)
+
     def test_prepare_existing_same_issue_does_not_build_commit_or_overwrite(self):
         (_, exists), commands, verify = self.prepared_fixture(existing=self.public)
         self.assertTrue(exists); verify.assert_called_once_with(BASE, self.public)
         self.assertFalse(any(kind == 'git' and 'commit' in args for kind, args in commands))
         self.assertFalse(any(kind == 'run' and 'build' in args for kind, args in commands))
+        self.assertFalse(any(kind == 'run' and Path(args[0]).name == 'npm' for kind, args in commands))
         validators = [args for kind, args in commands if kind == 'run' and 'scripts/verify-tag-changes.mjs' in args]
         self.assertEqual(len(validators), 1)
         self.assertIn('--idempotent', validators[0])
@@ -655,6 +781,10 @@ class PublisherTests(unittest.TestCase):
 
     def test_prepare_stages_complete_source_change_and_rejects(self):
         with self.assertRaisesRegex(RuntimeError, 'non-content'): self.prepared_fixture(extra_source=True)
+
+    def test_prepare_rejects_any_generated_path_from_the_complete_index(self):
+        with self.assertRaisesRegex(RuntimeError, 'non-content'):
+            self.prepared_fixture(extra_dist=True)
 
     def test_prepare_checkout_moved_main_stops_before_install(self):
         with self.assertRaisesRegex(RuntimeError, 'moved'): self.prepared_fixture(moved=True)
