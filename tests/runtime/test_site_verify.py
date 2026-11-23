@@ -320,6 +320,61 @@ class CloudflareReadbackTests(SiteReadbackTests):
         with patch.object(site,'api',self.api),self.assertRaises(RuntimeError):site.verify(self.settings,self.context)
 
 
+class BoundedArchiveCompatibilityTests(unittest.TestCase):
+    def test_global_and_per_path_pax_extracts_first_and_later_members(self):
+        self.assertTrue(callable(site._bounded_archive))
+        stream=io.BytesIO()
+        expected={f'repo/data/{n}.json':str(n).encode() for n in range(3)}
+        with tarfile.open(fileobj=stream,mode='w:gz',format=tarfile.PAX_FORMAT,
+                          pax_headers={'comment':'a'*40}) as target:
+            for name,raw in expected.items():
+                info=tarfile.TarInfo('placeholder');info.size=len(raw)
+                info.pax_headers={'path':name,'mtime':'1700000000.123456789'}
+                target.addfile(info,io.BytesIO(raw))
+        actual={}
+        with site._bounded_archive(stream.getvalue(),lambda:30) as archive:
+            for member in archive:
+                self.assertEqual(member.pax_headers['comment'],'a'*40)
+                self.assertEqual(member.pax_headers['mtime'],'1700000000.123456789')
+                source=archive.extractfile(member)
+                if source is None:self.fail('regular archive member must be readable')
+                with source:actual[member.name]=source.read()
+            self.assertIsNone(archive.next())
+        self.assertEqual(actual,expected)
+
+    def test_accumulating_global_pax_does_not_cache_member_metadata_copies(self):
+        # Each small global extension adds keys; stdlib copies the growing map
+        # onto every following ordinary member, even those with no local PAX.
+        # Retaining all TarInfos would turn linear input into quadratic memory.
+        stream=io.BytesIO();groups=16;per_group=8;keys_per_group=32
+        with tarfile.open(fileobj=stream,mode='w:gz',format=tarfile.PAX_FORMAT) as target:
+            for group in range(groups):
+                header=tarfile.TarInfo.create_pax_global_header({
+                    f'key-{group}-{key}':'x'*1024 for key in range(keys_per_group)})
+                target.fileobj.write(header);target.offset+=len(header)
+                for index in range(per_group):
+                    raw=f'{group}-{index}'.encode()
+                    info=tarfile.TarInfo('repo/data/'+raw.decode());info.size=len(raw)
+                    target.addfile(info,io.BytesIO(raw))
+        for access in ('iterator','next'):
+            with self.subTest(access=access),site._bounded_archive(stream.getvalue(),lambda:30) as archive:
+                members=iter(archive) if access=='iterator' else iter(archive.next,None)
+                count=0
+                for member in members:
+                    group,index=divmod(count,per_group)
+                    self.assertEqual(member.name,f'repo/data/{group}-{index}')
+                    self.assertEqual(len(member.pax_headers),(group+1)*keys_per_group)
+                    self.assertLessEqual(len(archive.members),1,'TarInfo cache must not grow with members')
+                    self.assertLessEqual(sum(len(info.pax_headers) for info in archive.members),
+                                         len(archive.pax_headers),'copied global PAX maps must not accumulate')
+                    source=archive.extractfile(member)
+                    if source is None:self.fail('regular archive member must be readable')
+                    with source:self.assertEqual(source.read(),f'{group}-{index}'.encode())
+                    count+=1
+                self.assertEqual(count,groups*per_group)
+                self.assertLessEqual(len(archive.members),1)
+
+
 class ExactArchiveTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

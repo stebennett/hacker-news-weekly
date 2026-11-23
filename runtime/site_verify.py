@@ -167,7 +167,20 @@ def _bounded_archive(raw,remaining):
                 self._pax_keyword=not self._pax_keyword
                 return super()._decode_pax_field(value,*args)
 
-        with tarfile.open(fileobj=expanded,mode='r:',tarinfo=BudgetTarInfo,stream=True) as archive:
+        class BudgetTarFile(tarfile.TarFile):
+            members: list[tarfile.TarInfo]
+
+            def next(self):
+                # Python 3.11/3.12 lack stream=True. Discard stdlib's per-member
+                # cache after each read, including the constructor's first one:
+                # every TarInfo may carry a copy of the growing global PAX map.
+                # This is a one-pass reader; extraction uses the yielded object,
+                # never member-name lookup or replay of cached archive members.
+                member=super().next()
+                self.members.clear()
+                return member
+
+        with BudgetTarFile.open(fileobj=expanded,mode='r:',tarinfo=BudgetTarInfo) as archive:
             yield archive
 
 
