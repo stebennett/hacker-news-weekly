@@ -55,7 +55,8 @@ class SiteReadbackTests(unittest.TestCase):
 
     def api(self,settings,path):
         if '/contents/' in path:
-            name=path.split('/contents/dist/')[1].split('?')[0]
+            name=path.split('/contents/')[1].split('?')[0]
+            self.assertTrue(name.startswith('data/'), 'resolve must read canonical source, never dist')
             return dict(type='file',encoding='base64',content=base64.b64encode(self.tracked[name]).decode())
         if '/commits/' in path:return dict(sha='a'*40)
         if '/statuses?' in path:return [dict(state='success')]
@@ -353,14 +354,23 @@ class ExactArchiveTests(unittest.TestCase):
         records.find(record=>record.id==='1').tagSlugs.push('single');
         records.find(record=>record.id==='82').tagSlugs=['untouched'];
         await writeTagData(data,{registry,records});
-        const buildRoot=await isolatedBuildRoot(root), result=runBuild(buildRoot,data,root+'/dist','fixture');
+        const buildRoot=await isolatedBuildRoot(root), result=runBuild(buildRoot,data,root+'/dist','unversioned');
         if(result.status!==0) throw Error(result.stdout+result.stderr);
         await mkdir(root+'/public');await copyFile('public/_headers',root+'/public/_headers');
         """
         result=subprocess.run([shutil.which('node'),'--input-type=module','-e',script,str(cls.root)],
                               cwd=source,capture_output=True,timeout=120)
         if result.returncode:raise AssertionError(result.stderr.decode()+result.stdout.decode())
-        cls.files={str(path.relative_to(cls.root)):path.read_bytes() for base in ('data','dist','public') for path in (cls.root/base).rglob('*') if path.is_file()}
+        cls.output={str(path.relative_to(cls.root/'dist')):path.read_bytes()
+                    for path in (cls.root/'dist').rglob('*') if path.is_file()}
+        cls.files={str(path.relative_to(cls.root)):path.read_bytes()
+                   for path in (cls.root/'data').rglob('*') if path.is_file()}
+        # Exact source fixture: immutable build inputs and public data, NO output.
+        for name in ('src','scripts','schema','public'):
+            cls.files.update({str(path.relative_to(source)):path.read_bytes()
+                              for path in (source/name).rglob('*') if path.is_file()})
+        for name in ('astro.config.mjs','tsconfig.json','package.json','package-lock.json','.node-version','.npmrc'):
+            if (source/name).exists():cls.files[name]=(source/name).read_bytes()
 
     def setUp(self):
         self.network=patch.object(site,'urlopen',side_effect=AssertionError('offline archive tests must not open network'))
@@ -371,9 +381,16 @@ class ExactArchiveTests(unittest.TestCase):
 
     def archive(self,files=None):
         stream=io.BytesIO()
+        files=self.files if files is None else files
+        prefix='repo-'+'a'*40
         with tarfile.open(fileobj=stream,mode='w:gz') as tar:
-            for path,raw in (self.files if files is None else files).items():
-                info=tarfile.TarInfo('repo-'+'a'*40+'/'+path);info.size=len(raw);tar.addfile(info,io.BytesIO(raw))
+            # Match codeload's explicit directories, not only a file-only tar.
+            directories={'.'} | {str(parent) for path in files for parent in Path(path).parents}
+            for path in sorted(directories):
+                info=tarfile.TarInfo(prefix+('' if path=='.' else '/'+path));info.type=tarfile.DIRTYPE
+                tar.addfile(info)
+            for path,raw in files.items():
+                info=tarfile.TarInfo(prefix+'/'+path);info.size=len(raw);tar.addfile(info,io.BytesIO(raw))
         return stream.getvalue()
 
     def expected(self,raw=None,url=None):
@@ -412,33 +429,66 @@ class ExactArchiveTests(unittest.TestCase):
         self.assertEqual(tracked['data/tags.json'],self.files['data/tags.json'])
         self.assertEqual(tracked['data/stories/1.json'],self.files['data/stories/1.json'])
 
-    def rewrite_manifest(self):
-        value=json.loads(self.files['dist/build-manifest.json'])
-        value['artifacts']={path.removeprefix('dist/'):digest(raw) for path,raw in self.files.items() if path.startswith('dist/') and path!='dist/build-manifest.json'}
-        self.files['dist/build-manifest.json']=json.dumps(value).encode()
+    def test_source_only_release_matches_independent_full_build_and_ignores_legacy_output(self):
+        tracked,evidence=self.expected()
+        self.assertFalse(any(path.startswith('dist/') for path in self.files))
+        self.assertEqual(tracked,{path:self.output[path] for path in tracked})
+        self.assertEqual(json.loads(tracked['build-manifest.json'])['sourceRevision'],'unversioned')
+        # A transitional archive's old output is not authority, even if rehashed.
+        self.files.update({'dist/'+path:b'FORGED OUTPUT' for path in self.output})
+        self.assertEqual(self.expected(),(tracked,evidence))
 
-    def test_rehashed_wrong_unsampled_html_or_omitted_routes_cannot_authorize_themselves(self):
-        self.expected() # valid callable control, real verifier and build
+    def test_changed_missing_or_extra_build_inputs_are_rejected_before_execution(self):
+        self.expected() # real valid callable control before every negative family
         original=dict(self.files)
-        for mode in ('wrong-card','missing-middle','extra-route','wrong-story','wrong-registry'):
+        marker=self.root/'fetched-code-executed'
+        malicious=f"import {{writeFileSync}} from 'node:fs';writeFileSync({json.dumps(str(marker))},'bad');".encode()
+        for path in ('scripts/build.mjs','scripts/verify-dist.mjs','src/layouts/Layout.astro',
+                     'astro.config.mjs','schema/issue.schema.json','public/_headers','package-lock.json',
+                     'tsconfig.json','package.json','.node-version'):
+            for operation in ('change','missing'):
+                self.files=dict(original)
+                if operation=='change':self.files[path]=malicious
+                else:del self.files[path]
+                with self.subTest(path=path,operation=operation),self.assertRaisesRegex(RuntimeError,'build input.*(mismatch|differ)'):
+                    self.expected()
+                self.assertFalse(marker.exists())
+        for path in ('scripts/extra.mjs','src/pages/extra.astro','schema/extra.json','public/extra',
+                     '.npmrc','.env','vite.config.mjs','postcss.config.cjs'):
+            self.files=dict(original);self.files[path]=malicious
+            with self.subTest(extra=path),self.assertRaisesRegex(RuntimeError,'build input.*(mismatch|differ)'):
+                self.expected()
+        self.assertFalse(marker.exists())
+
+    def test_source_semantic_errors_are_not_hidden_by_forged_output(self):
+        self.expected()
+        original=dict(self.files)
+        for mode in ('missing-record','wrong-record-id','unknown-tag','invalid-issue'):
             self.files=dict(original)
-            if mode=='wrong-card':self.files['dist/tags/ai/3/index.html']=self.files['dist/tags/ai/3/index.html'].replace(b'Show HN: fixture 41',b'Unreviewed fixture 41')
-            if mode=='missing-middle':del self.files['dist/tags/ai/3/index.html']
-            if mode=='extra-route':self.files['dist/tags/ai/6/index.html']=self.files['dist/tags/ai/5/index.html']
-            if mode=='wrong-story':self.files['dist/data/stories/1.json']=self.files['dist/data/stories/2.json']
-            if mode=='wrong-registry':self.files['dist/data/tags.json']=b'{"schemaVersion":1,"tags":[]}'
-            self.rewrite_manifest()
+            self.files.update({'dist/'+path:raw for path,raw in self.output.items()})
+            if mode=='missing-record':del self.files['data/stories/1.json']
+            if mode=='wrong-record-id':self.files['data/stories/1.json']=self.files['data/stories/2.json']
+            if mode=='unknown-tag':self.files['data/tags.json']=b'{"schemaVersion":1,"tags":[]}'
+            if mode=='invalid-issue':self.files['data/issues/2026-11-13.json']=b'{}'
             with self.subTest(mode=mode),self.assertRaisesRegex(RuntimeError,'local artifact/tag inventory verification failed'):
                 self.expected()
 
-    def test_duplicate_decoded_keys_are_rejected_in_registry_story_or_manifest(self):
+    def test_noncanonical_validated_source_bytes_preserve_export_policy(self):
+        self.expected()
+        for path in ('data/tags.json','data/stories/1.json','data/issues/2026-11-13.json'):
+            self.files[path]=json.dumps(json.loads(self.files[path]),separators=(',',':')).encode()
+        tracked,_=self.expected()
+        self.assertEqual(tracked['data/tags.json'],self.files['data/tags.json'])
+        self.assertEqual(tracked['data/stories/1.json'],self.files['data/stories/1.json'])
+        self.assertEqual(tracked['data/issues/2026-11-13.json'],self.output['data/issues/2026-11-13.json'])
+        self.assertNotEqual(tracked['data/issues/2026-11-13.json'],self.files['data/issues/2026-11-13.json'])
+
+    def test_duplicate_decoded_keys_are_rejected_in_all_public_source_json(self):
         self.expected()
         original=dict(self.files)
-        for path in ('data/tags.json','data/stories/1.json','dist/build-manifest.json'):
+        for path in ('data/tags.json','data/stories/1.json','data/issues/2026-11-13.json'):
             self.files=dict(original)
             raw=self.files[path];self.files[path]=raw.replace(b'{',b'{"schemaVersion":1,',1)
-            # Legacy verifyDist parses the manifest normally; runtime must
-            # additionally reject its original duplicate bytes before success.
             with self.subTest(path=path),self.assertRaisesRegex(RuntimeError,'local artifact/tag inventory|duplicate JSON'):
                 self.expected()
 
@@ -463,16 +513,123 @@ class ExactArchiveTests(unittest.TestCase):
 
     def test_wrong_node_pin_and_compressed_byte_overflow_fail_closed(self):
         self.expected()
-        with patch.object(site.subprocess,'run',return_value=subprocess.CompletedProcess([],0,stdout=b'v0.0.0')):
-            with self.assertRaisesRegex(RuntimeError,'Node differs from pin'):self.expected()
+        with patch.dict(self.settings,node=sys.executable),self.assertRaisesRegex(RuntimeError,'Node differs from pin'):
+            self.expected()
         with patch.object(site,'MAX_COMPRESSED_BYTES',1),self.assertRaisesRegex(RuntimeError,'compressed byte limit'):
             self.expected()
 
-    def test_fetched_scripts_are_not_executed(self):
-        self.files['scripts/verify-dist.mjs']=b'throw Error("UNTRUSTED FETCHED SCRIPT EXECUTED")'
-        tracked,evidence=self.expected()
-        self.assertTrue(evidence['allExpectedRoutesLocallyVerified'])
-        self.assertIn('tags/ai/5/index.html',tracked)
+    def test_missing_installed_dependencies_fail_closed_without_install(self):
+        self.expected()
+        with tempfile.TemporaryDirectory() as temporary:
+            installed=Path(temporary)
+            for path,raw in self.files.items():
+                if path.startswith('data/'):continue
+                target=installed/path;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw)
+            with patch.object(site,'ROOT',installed),self.assertRaisesRegex(RuntimeError,'installed.*dependencies'):
+                self.expected()
+
+    def test_build_is_isolated_no_installed_writes_credentials_or_npm(self):
+        import os
+        def snapshot():
+            return {str(path.relative_to(site.ROOT)):(path.lstat().st_mode,path.lstat().st_size,path.lstat().st_mtime_ns)
+                    for path in site.ROOT.rglob('*') if '.git' not in path.relative_to(site.ROOT).parts}
+        before=snapshot();calls=[];popen=subprocess.Popen
+        def run(args,**kwargs):
+            calls.append((args,kwargs))
+            self.assertEqual(args[0],self.settings['node'])
+            self.assertNotIn('npm',' '.join(args[1:]))
+            env=kwargs['env'];cwd=Path(kwargs['cwd'])
+            for key in ('GH_TOKEN','GITHUB_TOKEN','SMTP_PASSWORD','NODE_OPTIONS','TWIHN_SOURCE_REVISION'):
+                self.assertNotIn(key,env)
+            self.assertNotEqual(cwd,site.ROOT)
+            self.assertEqual(cwd.stat().st_mode & 0o777,0o700)
+            self.assertEqual((cwd/'data/tags.json').stat().st_mode & 0o777,0o644)
+            self.assertNotEqual(env['HOME'],os.environ.get('HOME'))
+            self.assertEqual(kwargs.get('umask'),0o022)
+            self.assertTrue(str(env['TMPDIR']).startswith(str(cwd)))
+            return popen(args,**kwargs)
+        with patch.dict(os.environ,GH_TOKEN='secret',GITHUB_TOKEN='secret',SMTP_PASSWORD='secret',
+                        NODE_OPTIONS='--require /DO-NOT-LOAD',TWIHN_SOURCE_REVISION='wrong'),\
+             patch.object(subprocess,'Popen',side_effect=run):
+            self.expected()
+        self.assertGreaterEqual(len(calls),3) # pin, build, independent verifier
+        self.assertEqual(before,snapshot())
+
+    def test_real_reconstruction_verifies_live_release_and_rejects_corrupted_selected_bytes(self):
+        tracked,_=self.expected()
+        public=json.loads(self.files['data/issues/2026-11-13.json'])
+        legacy={'sections':[{'items':[dict(id=id,title=public['items'][id]['title'],
+                    score=public['items'][id]['score'],comments=public['items'][id]['comments'],
+                    story=public['items'][id]['story'],discussion=public['items'][id]['discussion'],
+                    created=public['items'][id]['submittedAt'],url=public['items'][id].get('sourceUrl',''))
+                    for id in section['itemIds']]} for section in public['sections']]}
+        review=self.root/'exact-reviewed.json';review.write_text(json.dumps(legacy))
+        context=dict(self.context,revision=1,**public['window'],reviewed=str(review),reviewedSha256=digest(review.read_bytes()))
+        def api(settings,path):
+            if '/commits/' in path:return {'sha':context['commit']}
+            if '/statuses?' in path:return [{'state':'success'}]
+            return [dict(id=7,sha=context['commit'],environment='Production')]
+        def live(settings,path):
+            path=path+'index.html' if path.endswith('/') else path
+            return tracked[path],dict(url='https://twihn.com/'+path,cacheControl='no-cache')
+        # Reuse only the archive transport stub, NEVER mock expected_artifacts.
+        raw=self.archive();canonical='https://codeload.github.com/owner/repo/tar.gz/'+'a'*40
+        class Response:
+            status=200
+            def geturl(self):return canonical
+            def read(self,size):return raw[:size]
+            def __enter__(self):return self
+            def __exit__(self,*args):pass
+        with patch.object(site,'urlopen',return_value=Response()),patch.object(site,'api',api),patch.object(site,'live',live):
+            result=site.verify(dict(self.settings,verify_timeout=30),context)
+            self.assertFalse(result['tagging']['allHistoricalPagesFetched'])
+            self.assertLessEqual(result['requestBudgetUsed'],128)
+            for wrong in ('build-manifest.json','data/tags.json','data/stories/1.json',
+                          'issues/2026-11-13/index.html','tags/index.html','tags/ai/5/index.html'):
+                original=tracked[wrong];tracked[wrong]=b'LIVE CORRUPTION'
+                # Building is inside the same deadline. Use a mocked clock only
+                # to expire immediately on the FIRST actual divergent live read.
+                clock=[0.0]
+                def corrupt(settings,path):
+                    value=live(settings,path)
+                    if value[0]==b'LIVE CORRUPTION':clock[0]=31.0
+                    return value
+                with self.subTest(path=wrong),patch.object(site,'live',corrupt),\
+                     patch.object(site.time,'monotonic',side_effect=lambda:clock[0]),\
+                     self.assertRaisesRegex(RuntimeError,'live artifact differs.*'+wrong):
+                    site.verify(dict(self.settings,verify_timeout=30),context)
+                tracked[wrong]=original
+
+    def test_archive_root_and_parent_file_collisions_are_rejected(self):
+        self.expected()
+        prefix='repo-'+'a'*40
+        for names in ((prefix,prefix+'/docs/file'),
+                      (prefix+'/docs/parent',prefix+'/docs/parent/child'),
+                      (prefix+'/docs/parent/child',prefix+'/docs/parent')):
+            stream=io.BytesIO()
+            with tarfile.open(fileobj=stream,mode='w:gz') as tar:
+                for name in names:tar.addfile(tarfile.TarInfo(name))
+                for path,raw in self.files.items():
+                    info=tarfile.TarInfo(prefix+'/'+path);info.size=len(raw);tar.addfile(info,io.BytesIO(raw))
+            with self.subTest(names=names),self.assertRaisesRegex(RuntimeError,'archive inventory'):
+                self.expected(stream.getvalue())
+
+    def test_archive_links_special_files_duplicates_and_entry_cap_even_in_ignored_output(self):
+        self.expected()
+        for kind in (tarfile.SYMTYPE,tarfile.LNKTYPE,tarfile.FIFOTYPE,tarfile.CHRTYPE):
+            stream=io.BytesIO()
+            with tarfile.open(fileobj=stream,mode='w:gz') as tar:
+                info=tarfile.TarInfo('repo-'+'a'*40+'/dist/ignored');info.type=kind;info.linkname='/escape';tar.addfile(info)
+            with self.subTest(kind=kind),self.assertRaisesRegex(RuntimeError,'archive inventory'):
+                self.expected(stream.getvalue())
+        stream=io.BytesIO()
+        with tarfile.open(fileobj=stream,mode='w:gz') as tar:
+            for _ in range(2):tar.addfile(tarfile.TarInfo('repo-'+'a'*40+'/docs/duplicate'))
+        with self.assertRaisesRegex(RuntimeError,'archive inventory'):self.expected(stream.getvalue())
+        stream=io.BytesIO()
+        with tarfile.open(fileobj=stream,mode='w:gz') as tar:
+            for n in range(50001):tar.addfile(tarfile.TarInfo('repo-'+'a'*40+'/docs/'+str(n)))
+        with self.assertRaisesRegex(RuntimeError,'inventory limit'):self.expected(stream.getvalue())
 
     def test_archive_redirect_path_traversal_byte_limits_and_deadline_fail_closed(self):
         self.expected()

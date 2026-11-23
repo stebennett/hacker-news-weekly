@@ -10,10 +10,8 @@ import argparse
 import base64
 import io
 import json
-import os
 from pathlib import Path
 import shutil
-import subprocess
 import tarfile
 import tempfile
 import math
@@ -26,6 +24,7 @@ from urllib.request import Request, HTTPRedirectHandler, build_opener
 
 from .orchestrator import RuntimeError, digest, instant
 from .tagging import _unique_object
+from . import trusted_build
 
 
 MAX_REQUESTS=128
@@ -119,52 +118,75 @@ def expected_artifacts(settings,context):
         raw=response.read(MAX_COMPRESSED_BYTES+1)
         if len(raw)>MAX_COMPRESSED_BYTES:raise RuntimeError('production archive compressed byte limit exceeded')
     remaining()
+    installed=trusted_build.build_inputs(ROOT,remaining)
     with tempfile.TemporaryDirectory(prefix='twihn-readback-') as temporary:
-        root=Path(temporary)
+        root=Path(temporary);root.chmod(0o700)
         prefix=repo.split('/')[1]+'-'+commit
-        total=0;seen=set()
+        total=0;seen=set();matched=set();files=set();directories=set()
+        # Explicit and implicit directories participate in the input inventory;
+        # empty extra input directories cannot hide new auto-loaded policy.
+        input_dirs={str(parent) for name in installed for parent in Path(name).parents if str(parent)!='.'}
         try:
             with tarfile.open(fileobj=io.BytesIO(raw),mode='r|gz') as archive:
                 for member in archive:
                     remaining()
                     parts=member.name.rstrip('/').split('/')
-                    if (parts[0]!=prefix or any(part in ('','.','..') for part in parts) or
-                            '\\' in member.name or not (member.isdir() or member.isfile()) or member.name in seen):
+                    normalized='/'.join(parts)
+                    if (parts[0]!=prefix or len(parts)>128 or len(member.name)>4096 or
+                            any(part in ('','.','..') for part in parts) or
+                            '\\' in member.name or not (member.isdir() or member.isfile()) or normalized in seen or member.size<0):
                         raise RuntimeError('invalid production archive inventory')
-                    seen.add(member.name);total+=member.size
+                    parents={'/'.join(parts[:index]) for index in range(1,len(parts))}
+                    if (parents & files or (member.isfile() and (normalized in directories or len(parts)==1))):
+                        raise RuntimeError('invalid production archive inventory')
+                    directories.update(parents)
+                    (directories if member.isdir() else files).add(normalized)
+                    seen.add(normalized);total+=member.size
                     if len(seen)>50000 or total>MAX_ARCHIVE_BYTES:
                         raise RuntimeError('production archive extracted inventory limit exceeded')
                     relative='/'.join(parts[1:])
-                    if not member.isfile() or not (relative.startswith(('data/','dist/')) or relative=='public/_headers'):
-                        continue
-                    target=root/relative;target.parent.mkdir(parents=True,exist_ok=True)
-                    with archive.extractfile(member) as source:
-                        target.write_bytes(source.read())
+                    if not relative:continue
+                    if trusted_build.is_build_input(relative):
+                        if member.isdir():
+                            if relative not in input_dirs:
+                                raise RuntimeError('production build input inventory mismatch')
+                        else:
+                            if relative not in installed:
+                                raise RuntimeError('production build input inventory mismatch')
+                            source=archive.extractfile(member)
+                            if source is None:raise RuntimeError('invalid production archive inventory')
+                            with source:
+                                if source.read()!=installed[relative]:
+                                    raise RuntimeError('production build input bytes differ from installed trusted source')
+                            matched.add(relative)
+                    elif member.isfile() and relative.startswith('data/'):
+                        source=archive.extractfile(member)
+                        if source is None:raise RuntimeError('invalid production archive inventory')
+                        with source:
+                            data=source.read()
+                        if relative.endswith('.json'):strict_json(data)
+                        trusted_build.write_public(root/relative,data)
+                    # Ignore transitional dist, never extract/use fetched output,
+                    # code, schema, configuration or public/_headers as authority.
         except (tarfile.TarError,OSError) as exc:
             raise RuntimeError('invalid production archive') from exc
-        # Schema/validator authority is the installed human-reviewed source, not
-        # arbitrary code or weakened schemas in an incoming content commit.
-        shutil.copytree(ROOT/'schema',root/'schema')
-        env={k:os.environ[k] for k in ('PATH','HOME','TMPDIR','LANG','LC_ALL') if k in os.environ}
-        env['TWIHN_DATA_DIR']=str(root/'data')
+        if matched!=set(installed):
+            raise RuntimeError('production build input inventory mismatch')
+        env=trusted_build.stage(ROOT,root,installed)
         node=settings.get('node',shutil.which('node'))
         if not node or not Path(node).is_absolute():raise RuntimeError('absolute production verifier Node required')
-        try:
-            version=subprocess.run([node,'--version'],capture_output=True,env=env,timeout=remaining(),check=True)
-            if version.stdout.decode().strip()!='v'+(ROOT/'.node-version').read_text().strip():
-                raise RuntimeError('production verifier Node differs from pin')
-            with tempfile.TemporaryFile() as output:
-                result=subprocess.run([node,'--input-type=module','-e',_LOCAL_EXPECTATIONS,str(ROOT),context['issueId'],
-                                       str(settings.get('verify_max_requests',MAX_REQUESTS))],cwd=root,env=env,
-                                      stdout=output,stderr=subprocess.DEVNULL,timeout=remaining())
-                if result.returncode==3:
-                    raise RuntimeError('complete tagged readback exceeds production verification request budget')
-                if result.returncode:
-                    raise RuntimeError('production local artifact/tag inventory verification failed')
-                output.seek(0);value=output.read(20*1024*1024+1)
-                if len(value)>20*1024*1024:raise RuntimeError('production expectation byte limit exceeded')
-        except (OSError,subprocess.SubprocessError) as exc:
-            raise RuntimeError('production local verification failed or exceeded deadline') from exc
+        status,version=trusted_build.run_node(node,['--version'],root,env,remaining,max_output=1024)
+        if status or version.decode().strip()!='v'+installed['.node-version'].decode().strip():
+            raise RuntimeError('production verifier Node differs from pin')
+        status,_=trusted_build.run_node(node,['scripts/build.mjs'],root,env,remaining)
+        if status:
+            raise RuntimeError('production local artifact/tag inventory verification failed during trusted build')
+        status,value=trusted_build.run_node(node,['--input-type=module','-e',_LOCAL_EXPECTATIONS,str(root),context['issueId'],
+                                                str(settings.get('verify_max_requests',MAX_REQUESTS))],root,env,remaining)
+        if status==3:
+            raise RuntimeError('complete tagged readback exceeds production verification request budget')
+        if status:
+            raise RuntimeError('production local artifact/tag inventory verification failed')
         remaining()
         result=strict_json(value)
         tracked={path:base64.b64decode(raw,validate=True) for path,raw in result['tracked'].items()}
@@ -223,7 +245,7 @@ def resolve(settings,context):
     commit=response['sha']
     if not re.fullmatch(r'[0-9a-f]{40,64}',commit):
         raise RuntimeError('invalid production commit readback')
-    raw=committed(settings,commit,f'dist/data/issues/{context["issueId"]}.json')
+    raw=committed(settings,commit,f'data/issues/{context["issueId"]}.json')
     parity(strict_json(raw),context)
     return dict(commit=commit)
 
