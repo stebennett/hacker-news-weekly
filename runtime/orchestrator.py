@@ -19,6 +19,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time as monotonic_time
 from zoneinfo import ZoneInfo
 from urllib.parse import urlsplit
 
@@ -229,17 +230,41 @@ class Store:
         return state
 
 
+# Ephemeral handoff only: bounded owns the session, website_worker attests its
+# group, and direct adapters may inherit it. Never pass these markers to Node.
+_STAGE_SUPERVISOR = '_TWIHN_STAGE_SUPERVISOR_PID'
+_WEBSITE_GROUP = '_TWIHN_WEBSITE_GROUP_PID'
+
+
+def _wait_unreaped(process, timeout):
+    """Observe exit without releasing the leader PID before group cleanup."""
+    deadline = monotonic_time.monotonic() + timeout
+    while os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is None:
+        remaining = deadline - monotonic_time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(process.args, timeout)
+        monotonic_time.sleep(min(0.01, remaining))
+
+
 def bounded(argv, timeout, *, cwd=None, own_group=True):
     if not isinstance(argv, list) or not argv or any(not isinstance(arg, str) for arg in argv):
         raise RuntimeError('adapter command must be a nonempty JSON argv array')
     if not 0 < float(timeout) <= 86400:
         raise RuntimeError('invalid subprocess deadline')
+    env = None
+    if own_group:
+        env = dict(os.environ)
+        env.pop(_WEBSITE_GROUP, None)
+        env[_STAGE_SUPERVISOR] = str(os.getpid())
     # File-backed output prevents a misbehaving child exhausting parent RAM.
     with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
         proc = subprocess.Popen(argv, cwd=cwd, stdout=stdout, stderr=stderr, start_new_session=own_group,
-                                close_fds=True, stdin=subprocess.DEVNULL)
+                                close_fds=True, stdin=subprocess.DEVNULL, env=env)
         try:
-            proc.wait(timeout=float(timeout))
+            if own_group:
+                _wait_unreaped(proc, float(timeout))
+            else:
+                proc.wait(timeout=float(timeout))
         except BaseException:
             try:
                 os.killpg(proc.pid, signal.SIGKILL) if own_group else proc.kill()
@@ -253,6 +278,7 @@ def bounded(argv, timeout, *, cwd=None, own_group=True):
                 os.killpg(proc.pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
+        proc.wait()  # Reap only after killing the still-PID-pinned process group.
         stdout.seek(0); stderr.seek(0)
         output = stdout.read(1048577)
         error = stderr.read(4096).decode(errors='replace')
@@ -301,19 +327,43 @@ def verify_website(evidence, context):
     return evidence
 
 
+@contextmanager
+def _website_process_group():
+    supervisor = os.environ.get(_STAGE_SUPERVISOR)
+    previous = os.environ.get(_WEBSITE_GROUP)
+    if supervisor is None:
+        if previous is not None:
+            raise RuntimeError('invalid website process supervisor')
+        yield
+        return
+    # Only a real bounded session leader can attest ownership to its adapters.
+    if (supervisor != str(os.getppid()) or os.getpid() != os.getpgrp()
+            or os.getsid(0) != os.getpid()):
+        raise RuntimeError('invalid website process supervisor')
+    os.environ[_WEBSITE_GROUP] = str(os.getpid())
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop(_WEBSITE_GROUP, None)
+        else:
+            os.environ[_WEBSITE_GROUP] = previous
+
+
 def website_worker(config_path, context_path, verify_only=False):
-    config = json.loads(Path(config_path).read_bytes())
-    context_path = Path(context_path)
-    context = json.loads(context_path.read_bytes())
-    if not verify_only:
-        result = command(config, 'website_publish', context_path, context, own_group=False)
-        commit = result.get('commit', '')
-        if not isinstance(commit, str) or not re.fullmatch('[0-9a-f]{40,64}', commit):
-            raise RuntimeError('publication adapter must identify the actual production commit')
-        context['commit'] = commit
-        atomic(context_path, json_bytes(context))
-    evidence = command(config, 'website_verify', context_path, context, own_group=False)
-    return verify_website(evidence, context)
+    with _website_process_group():
+        config = json.loads(Path(config_path).read_bytes())
+        context_path = Path(context_path)
+        context = json.loads(context_path.read_bytes())
+        if not verify_only:
+            result = command(config, 'website_publish', context_path, context, own_group=False)
+            commit = result.get('commit', '')
+            if not isinstance(commit, str) or not re.fullmatch('[0-9a-f]{40,64}', commit):
+                raise RuntimeError('publication adapter must identify the actual production commit')
+            context['commit'] = commit
+            atomic(context_path, json_bytes(context))
+        evidence = command(config, 'website_verify', context_path, context, own_group=False)
+        return verify_website(evidence, context)
 
 
 class Runtime:

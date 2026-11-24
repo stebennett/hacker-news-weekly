@@ -46,29 +46,29 @@ async function actualData(repository) {
   return files;
 }
 async function changedPaths(repository,base,issue,idempotent) {
-  const raw = splitZ(localGit(repository,'diff','--no-ext-diff','--no-renames','--name-status','-z',base,'--'));
-  requireThat(raw.length % 2 === 0, 'Invalid changed-path readback');
   const paths = new Set();
-  for (let n=0;n<raw.length;n+=2) {
-    requireThat(['A','M'].includes(raw[n]), 'Deletion/rename/nonregular change refused');
-    paths.add(raw[n+1]);
+  // Worktree changes can cancel staged changes; authorize both views independently.
+  for (const cached of [[],['--cached']]) {
+    const raw = splitZ(localGit(repository,'diff',...cached,'--no-ext-diff','--no-renames','--name-status','-z',base,'--'));
+    requireThat(raw.length % 2 === 0, 'Invalid changed-path readback');
+    for (let n=0;n<raw.length;n+=2) {
+      requireThat(['A','M'].includes(raw[n]), 'Deletion/rename/nonregular change refused');
+      paths.add(raw[n+1]);
+    }
   }
   for (const name of splitZ(localGit(repository,'ls-files','--others','--exclude-standard','-z'))) paths.add(name);
   if (idempotent) requireThat(paths.size === 0, 'Idempotent published checkout must be unchanged');
-  else requireThat(paths.has(`data/issues/${issue.issueId}.json`) && [...paths].some(name=>name.startsWith('dist/')), 'Changes must include current issue and generated dist');
+  else requireThat(paths.has(`data/issues/${issue.issueId}.json`), 'Changes must include current issue');
   const ids = new Set(Object.keys(issue.items));
   for (const name of paths) {
     const story = /^data\/stories\/([1-9][0-9]*)\.json(?![\s\S])/u.exec(name);
     requireThat(name.split('/').every(part=>part && part!=='.' && part!=='..') && !name.includes('\\') &&
-      (name === `data/issues/${issue.issueId}.json` || name === 'data/tags.json' || story && ids.has(story[1]) || name.startsWith('dist/')), 'Unauthorized non-content or unjustified story path');
+      (name === `data/issues/${issue.issueId}.json` || name === 'data/tags.json' || story && ids.has(story[1])), 'Unauthorized non-content or unjustified story path');
     // Validate worktree modes as well as Git's executable/symlink bits: Git
     // alone cannot distinguish a public 0600 file from the required 0644 mode.
     await readPrivateJSONBytes(path.join(repository,name));
     const info = await lstat(path.join(repository,name));
     requireThat(info.isFile() && (info.mode & 0o7777) === 0o644 && info.nlink === 1, 'Changed content must be regular unaliased mode 0644');
-    if ((name.startsWith('dist/data/issues/') || name.startsWith('dist/data/revisions/')) && name !== `dist/data/issues/${issue.issueId}.json`) {
-      requireThat(localGit(repository,'ls-tree',base,'--',name).length === 0, 'Historic generated issue/revision changed');
-    }
   }
 }
 

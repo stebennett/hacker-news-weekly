@@ -31,5 +31,11 @@ jobs:
       - run: python3 -m unittest discover -s tests -p 'test_*.py' -v
       - run: npm run build
       - run: npm run verify:dist
-      - name: Verify committed output is reproducible
-        run: git diff --exit-code -- dist && test -z "$(git ls-files --others --exclude-standard dist)"
+      - name: Reject tracked generated output
+        run: test -z "$(git ls-files -- dist)"
+      - run: npm run verify:reproducible
+      - name: Verify source tree is unchanged
+        run: |
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git ls-files --others --exclude-standard)"
