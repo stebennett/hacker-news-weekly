@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from runtime import weekly
 from runtime.orchestrator import Issue, RuntimeError, Store, digest
 from test_runtime import reviewed
+from test_tagging import candidate_bytes
 
 
 class WeeklyTests(unittest.TestCase):
@@ -38,16 +39,194 @@ class WeeklyTests(unittest.TestCase):
             result = weekly.begin(self.work, self.issue, now=self.now)
         return result, collect
 
-    def approve(self, sources=True):
+    def approve(self, sources=True, tagging=True):
         self.begin()
         path = self.root / 'review.json'
         path.write_text(json.dumps(self.review))
+        candidate = self.root / 'candidate.json'
+        candidate.write_bytes(candidate_bytes(path.read_bytes(), self.issue.issue_id))
+        candidate.chmod(0o600)
         provenance = self.root / 'sources.json'
         ids = {x['id'] for g in self.review['sections'] for x in g['items']}
         provenance.write_text(json.dumps({'itemSources': {i: {'sources': [], 'availability': {}} for i in ids}}))
+        options = dict(tagging_path=candidate) if tagging else {}
         result = weekly.approve(self.work, self.state, self.meta, self.issue, path,
-                                provenance if sources else None, approved=True)
+                                provenance if sources else None, approved=True, **options)
         return result
+
+    def retry(self, candidate=None):
+        return weekly.approve(self.work, self.state, self.meta, self.issue,
+            self.root/'review.json', self.root/'sources.json', approved=True,
+            tagging_path=candidate or self.root/'candidate.json')
+
+    def test_missing_tagging_preserves_email_but_blocks_website(self):
+        result = self.approve(tagging=False)
+        self.assertTrue(result['emailPrepared'])
+        self.assertRegex(result['websitePreparationError'] or '', 'tagging')
+        self.assertFalse(Path(result['metadata']).exists())
+        self.assertEqual(Store(self.state).load(self.issue.issue_id)['email']['status'], 'pending')
+
+    def test_tagging_exact_bytes_retry_and_private_modes(self):
+        result = self.approve()
+        self.assertIsNone(result['websitePreparationError'])
+        meta_path = Path(result['metadata'])
+        meta_raw = meta_path.read_bytes()
+        metadata = json.loads(meta_raw)
+        frozen = Path(metadata['taggingPath'])
+        expected = (self.root/'candidate.json').read_bytes()
+        self.assertEqual(frozen.read_bytes(), expected)
+        self.assertEqual(metadata['taggingSha256'], digest(expected))
+        self.assertTrue(frozen.is_absolute())
+        self.assertEqual(frozen.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(frozen.parent.stat().st_mode & 0o777, 0o700)
+        self.assertIsNone(self.retry()['websitePreparationError'])
+        self.assertEqual(frozen.read_bytes(), expected)
+        self.assertEqual(meta_path.read_bytes(), meta_raw)
+        # Tagging must never contaminate collector/email review fields.
+        self.assertEqual((self.state/self.issue.issue_id/'reviewed.json').read_bytes(),
+                         (self.root/'review.json').read_bytes())
+
+    def test_changed_candidate_cannot_replace_frozen_bytes_or_metadata(self):
+        result = self.approve()
+        meta_path = Path(result['metadata']); old_meta = meta_path.read_bytes()
+        frozen = Path(json.loads(old_meta)['taggingPath']); old_raw = frozen.read_bytes()
+        candidate = self.root/'candidate.json'
+        value = json.loads(old_raw)
+        for change in ('assignment', 'bytes', 'review', 'registry', 'root', 'id'):
+            with self.subTest(change=change):
+                altered = copy.deepcopy(value)
+                if change == 'assignment': altered['assignments']['1'] = ['ai']
+                if change == 'review': altered['reviewedSha256'] = '0'*64
+                if change == 'registry': altered['registrySha256'] = '0'*64
+                if change == 'root': altered['extra'] = True
+                if change == 'id': altered['assignments']['999999'] = ['ai']
+                candidate.write_bytes(json.dumps(altered).encode() + (b' ' if change == 'bytes' else b''))
+                retry = self.retry()
+                self.assertTrue(retry['emailPrepared'])
+                self.assertIsNotNone(retry['websitePreparationError'])
+                self.assertEqual(frozen.read_bytes(), old_raw)
+                self.assertEqual(meta_path.read_bytes(), old_meta)
+
+    def test_invalid_or_missing_candidate_leaves_no_metadata_or_frozen_sidecar(self):
+        result = self.approve(tagging=False)
+        candidate = self.root/'candidate.json'
+        for raw in (b'{}', b'[]', b'not JSON', b'null'):
+            with self.subTest(raw=raw):
+                candidate.write_bytes(raw)
+                retry = self.retry()
+                self.assertTrue(retry['emailPrepared'])
+                self.assertIsNotNone(retry['websitePreparationError'])
+                self.assertFalse(Path(retry['metadata']).exists())
+                self.assertFalse((self.state/self.issue.issue_id/'tagging.json').exists())
+        candidate.unlink()
+        self.assertIsNotNone(self.retry()['websitePreparationError'])
+        self.assertFalse(Path(result['metadata']).exists())
+
+    def test_tagging_failure_repair_never_resets_delivery_state(self):
+        result = self.approve(tagging=False)
+        store = Store(self.state)
+        for status in ('verified', 'ambiguous', 'in_progress'):
+            with self.subTest(status=status):
+                saved = store.load(self.issue.issue_id)
+                saved['email'] = dict(status=status, messageId='frozen-id', messageSha256='a'*64)
+                saved['website'] = dict(status='failed', error='original website error')
+                store.save(saved)
+                before = (self.state/self.issue.issue_id/'state.json').read_bytes()
+                retry = self.retry()
+                self.assertIsNone(retry['websitePreparationError'])
+                self.assertEqual((self.state/self.issue.issue_id/'state.json').read_bytes(), before)
+                self.assertTrue(Path(result['metadata']).exists())
+
+    def test_candidate_is_snapshotted_once_before_freeze(self):
+        from runtime import tagging
+        original_validate = tagging.validate_tagging
+        original = candidate_bytes(json.dumps(self.review).encode(), self.issue.issue_id)
+        def mutate_after_validation(raw, *args):
+            result = original_validate(raw, *args)
+            (self.root/'candidate.json').write_bytes(b'{}')
+            return result
+        with patch.object(tagging, 'validate_tagging', side_effect=mutate_after_validation):
+            result = self.approve()
+        self.assertIsNone(result['websitePreparationError'])
+        metadata = json.loads(Path(result['metadata']).read_bytes())
+        self.assertEqual(Path(metadata['taggingPath']).read_bytes(), original)
+        self.assertEqual(metadata['taggingSha256'], digest(original))
+        self.assertEqual((self.root/'candidate.json').read_bytes(), b'{}')
+
+    def test_candidate_bound_to_changed_source_after_parity_is_not_accepted(self):
+        original_parity = weekly.selected_parity
+        def change_both_after_parity(selected, review):
+            original_parity(selected, review)
+            changed = copy.deepcopy(self.review)
+            changed['sections'][0]['items'][0]['story'] = 'Changed after parity.'
+            raw = json.dumps(changed).encode()
+            (self.root/'review.json').write_bytes(raw)
+            (self.root/'candidate.json').write_bytes(candidate_bytes(raw, self.issue.issue_id))
+        with patch.object(weekly, 'selected_parity', side_effect=change_both_after_parity):
+            result = self.approve()
+        self.assertTrue(result['emailPrepared'])
+        self.assertIsNotNone(result['websitePreparationError'])
+        self.assertFalse(Path(result['metadata']).exists())
+        self.assertEqual((self.state/self.issue.issue_id/'reviewed.json').read_bytes(),
+                         json.dumps(self.review).encode())
+
+    def test_candidate_and_frozen_symlinks_and_orphans_fail_closed(self):
+        result = self.approve(tagging=False)
+        candidate = self.root/'candidate.json'
+        link = self.root/'link.json'; link.symlink_to(candidate)
+        self.assertIsNotNone(self.retry(link)['websitePreparationError'])
+        frozen = self.state/self.issue.issue_id/'tagging.json'
+        frozen.symlink_to(candidate)
+        self.assertIsNotNone(self.retry()['websitePreparationError'])
+        self.assertTrue(frozen.is_symlink())
+        frozen.unlink(); frozen.write_bytes(candidate.read_bytes()); frozen.chmod(0o600)
+        self.assertRegex(self.retry()['websitePreparationError'], 'orphan')
+        self.assertFalse(Path(result['metadata']).exists())
+
+    def test_missing_tampered_or_symlinked_frozen_sidecar_is_not_recreated(self):
+        result = self.approve()
+        meta_path = Path(result['metadata']); old_meta = meta_path.read_bytes()
+        frozen = Path(json.loads(old_meta)['taggingPath'])
+        frozen.unlink()
+        self.assertIsNotNone(self.retry()['websitePreparationError'])
+        self.assertFalse(frozen.exists())
+        frozen.write_bytes(b'{}'); frozen.chmod(0o600)
+        self.assertIsNotNone(self.retry()['websitePreparationError'])
+        self.assertEqual(frozen.read_bytes(), b'{}')
+        frozen.unlink(); frozen.symlink_to(self.root/'candidate.json')
+        self.assertIsNotNone(self.retry()['websitePreparationError'])
+        self.assertTrue(frozen.is_symlink())
+        self.assertEqual(meta_path.read_bytes(), old_meta)
+
+    def test_metadata_symlink_is_refused_without_overwriting_target(self):
+        result = self.approve(tagging=False)
+        target = self.root/'foreign.json'; target.write_bytes(b'foreign')
+        Path(result['metadata']).symlink_to(target)
+        self.assertIsNotNone(self.retry()['websitePreparationError'])
+        self.assertEqual(target.read_bytes(), b'foreign')
+
+    def test_tagging_and_metadata_roots_cannot_be_repository_paths(self):
+        result = self.approve(tagging=False)
+        # Patch only the privacy boundary, not weekly's renderer source root.
+        from runtime import tagging
+        with patch.object(tagging, 'ROOT', self.root):
+            retry = self.retry()
+        self.assertTrue(retry['emailPrepared'])
+        self.assertIsNotNone(retry['websitePreparationError'])
+        self.assertFalse(Path(result['metadata']).exists())
+
+    def test_cli_tagging_option_prepares_real_sidecar(self):
+        result = self.approve(tagging=False)
+        command = [sys.executable, '-m', 'runtime.weekly', 'approve', '--issue', self.issue.issue_id,
+            '--work-root', str(self.work), '--state-root', str(self.state), '--metadata-root', str(self.meta),
+            '--reviewed', str(self.root/'review.json'), '--sources', str(self.root/'sources.json'),
+            '--tagging', str(self.root/'candidate.json'), '--approve-reviewed']
+        output = subprocess.run(command, cwd=weekly.ROOT, capture_output=True, timeout=15)
+        self.assertEqual(output.returncode, 0, output.stderr.decode())
+        report = json.loads(output.stdout)
+        self.assertTrue(report['emailPrepared'])
+        self.assertIsNone(report['websitePreparationError'])
+        self.assertTrue(Path(result['metadata']).exists())
 
     def test_freeze_and_retry_do_not_recollect(self):
         result, collect = self.begin()

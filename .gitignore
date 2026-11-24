@@ -7,4 +7,4 @@ __pycache__/
 *.eml
 runtime-config*.json
 .DS_Store
-# dist/ is deliberately committed.
+dist/

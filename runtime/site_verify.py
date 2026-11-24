@@ -8,17 +8,282 @@ from __future__ import annotations
 
 import argparse
 import base64
+from contextlib import contextmanager
+import gzip
+import io
 import json
 from pathlib import Path
+import shutil
+import tarfile
+import tempfile
 import math
 import re
 import sys
 import time
+import zlib
 from urllib.error import URLError
 from urllib.parse import parse_qs, quote, urlencode, urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 
 from .orchestrator import RuntimeError, digest, instant
+from .tagging import _unique_object
+from . import trusted_build
+
+
+MAX_REQUESTS=128
+MAX_COMPRESSED_BYTES=32*1024*1024
+MAX_ARCHIVE_BYTES=128*1024*1024
+ROOT=Path(__file__).resolve().parents[1]
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self,req,fp,code,msg,headers,newurl):
+        raise RuntimeError('production readback redirect refused')
+
+
+# Retain stdlib TLS verification; do not spend uncounted requests following a
+# preview/downgrade/other-host redirect before rejecting its final response URL.
+urlopen=build_opener(_NoRedirect()).open
+
+
+def strict_json(raw):
+    def invalid_constant(_):
+        raise ValueError('nonfinite JSON constant')
+    try:
+        return json.loads(raw.decode('utf-8'),object_pairs_hook=_unique_object,
+                          parse_constant=invalid_constant)
+    except (ValueError,UnicodeError,RecursionError) as exc:
+        raise RuntimeError('invalid production UTF-8 JSON') from exc
+
+
+# Execute only the installed, reviewed verifier, NEVER scripts from the fetched
+# commit. It independently verifies every local JSON/HTML route against source;
+# the manifest is not allowed to authorize its own missing/wrong tag pages.
+_LOCAL_EXPECTATIONS=r"""
+const {readFile}=await import('node:fs/promises');
+const {pathToFileURL}=await import('node:url');
+const [root,issueId,maxPaths]=process.argv.slice(1);
+const {verifyDist}=await import(pathToFileURL(root+'/scripts/verify-dist.mjs'));
+const {expectedData}=await import(pathToFileURL(root+'/scripts/artifacts.mjs'));
+console.log=()=>{};
+await verifyDist('dist');
+const {issues,records,pages}=await expectedData();
+const issue=issues.find(issue=>issue.issueId===issueId);
+if (!issue) throw Error('missing expected issue');
+const selected=records.filter(record=>Object.hasOwn(issue.items,record.id))
+    .sort((a,b)=>BigInt(a.id)<BigInt(b.id)?-1:1);
+const assignments=Object.fromEntries(selected.map(record=>[record.id,record.tagSlugs]));
+const affectedTags=[...new Set(selected.flatMap(record=>record.tagSlugs))].sort();
+const paths=new Set(['build-manifest.json',`issues/${issueId}/index.html`,`data/issues/${issueId}.json`,
+    'data/tags.json',...selected.map(record=>`data/stories/${record.id}.json`),'tags/index.html']);
+const boundaries=[];
+const route=page=>page.url.slice(1)+'index.html';
+for (const slug of affectedTags) {
+    const group=pages.filter(page=>page.tag.slug===slug);
+    for (const index of new Set([0,1,group.length-2,group.length-1])) {
+        if (group[index]) paths.add(route(group[index]));
+    }
+    for (const index of new Set([0,group.length-2])) {
+        if (group[index] && group[index+1]) boundaries.push({slug,left:route(group[index]),right:route(group[index+1]),
+            lastId:group[index].stories.at(-1).item.id,firstId:group[index+1].stories[0].item.id});
+    }
+}
+if (paths.size>Number(maxPaths)) process.exit(3);
+const tracked=Object.fromEntries(await Promise.all([...paths].map(async path=>[path,(await readFile('dist/'+path)).toString('base64')])));
+process.stdout.write(JSON.stringify({tracked,tagging:{verified:true,expectation:'exact-commit-validated-inventory',
+    affectedTags,assignments,boundaries,localTagPageCount:pages.length,localIssueRouteCount:issues.length,
+    allExpectedRoutesLocallyVerified:true}}));
+"""
+
+
+@contextmanager
+def _bounded_archive(raw,remaining):
+    """Bound inflation before tarfile can consume hidden extension payloads.
+
+    The 128 MiB cap covers the WHOLE expanded gzip stream: tar headers, PAX/GNU
+    metadata, file padding and bytes after tar EOF, including concatenated gzip
+    members. Keep the independent regular-payload cap below as well. Inflation
+    uses bounded stdlib gzip reads (not tarfile's unbounded zlib stream path).
+    """
+    with tempfile.TemporaryFile() as expanded:
+        total=0
+        with gzip.GzipFile(fileobj=io.BytesIO(raw),mode='rb') as compressed:
+            while True:
+                remaining()
+                chunk=compressed.read(min(64*1024,MAX_ARCHIVE_BYTES-total+1))
+                remaining()
+                if not chunk:break
+                total+=len(chunk)
+                if total>MAX_ARCHIVE_BYTES:
+                    raise RuntimeError('production archive expanded inventory limit exceeded')
+                expanded.write(chunk)
+        expanded.seek(0)
+        records=0;extensions=0
+        def record():
+            nonlocal records
+            remaining();records+=1
+            if records>50000:
+                raise RuntimeError('production archive extracted inventory limit exceeded')
+
+        class BudgetTarInfo(tarfile.TarInfo):
+            # Extension handlers recurse internally before yielding a member.
+            # Hook their common dispatch, not just public fromtarfile/frombuf:
+            # CPython security updates can route recursion through private ones.
+            def _proc_member(self,archive):
+                nonlocal extensions
+                record()
+                if self.type==tarfile.GNUTYPE_SPARSE:
+                    raise RuntimeError('unsupported production archive sparse metadata')
+                if self.size<0 or archive.fileobj.tell()+self._block(self.size)>total:
+                    raise RuntimeError('production archive extracted inventory limit exceeded')
+                if self.type in (tarfile.XGLTYPE,tarfile.XHDTYPE,tarfile.SOLARIS_XHDTYPE,
+                                 tarfile.GNUTYPE_LONGNAME,tarfile.GNUTYPE_LONGLINK):
+                    extensions+=1
+                    # Codeload's commit comment/path/mtime need only small PAX
+                    # records. Bound each parser allocation and recursive chain,
+                    # rather than permitting a 128 MiB PAX field or deep stack.
+                    if self.size>64*1024 or extensions>8:
+                        raise RuntimeError('production archive metadata inventory limit exceeded')
+                    self._pax_keyword=True
+                else:
+                    extensions=0
+                member=super()._proc_member(archive)
+                remaining()
+                # PAX may replace the raw header's size. Validate the effective
+                # extent before extractfile/read can allocate or seek using it.
+                if member.size<0 or (member.isfile() and member.offset_data+self._block(member.size)>total):
+                    raise RuntimeError('production archive extracted inventory limit exceeded')
+                return member
+
+            def _decode_pax_field(self,value,*args):
+                remaining()
+                if self._pax_keyword:
+                    # Count PAX assignments too, including repeated/hidden keys.
+                    # Reject sparse keys before stdlib parses any sparse maps or
+                    # consumes sparse continuation records/reinterprets sizes.
+                    record()
+                    if value.startswith(b'GNU.sparse.'):
+                        raise RuntimeError('unsupported production archive sparse metadata')
+                self._pax_keyword=not self._pax_keyword
+                return super()._decode_pax_field(value,*args)
+
+        class BudgetTarFile(tarfile.TarFile):
+            members: list[tarfile.TarInfo]
+
+            def next(self):
+                # Python 3.11/3.12 lack stream=True. Discard stdlib's per-member
+                # cache after each read, including the constructor's first one:
+                # every TarInfo may carry a copy of the growing global PAX map.
+                # This is a one-pass reader; extraction uses the yielded object,
+                # never member-name lookup or replay of cached archive members.
+                member=super().next()
+                self.members.clear()
+                return member
+
+        with BudgetTarFile.open(fileobj=expanded,mode='r:',tarinfo=BudgetTarInfo) as archive:
+            yield archive
+
+
+def expected_artifacts(settings,context):
+    """One capped immutable archive request, then complete *local* validation.
+
+    No lifetime HTTP crawl, npm install, fetched script execution, delivery-state
+    writes, or new frozen tagging sidecar is needed for historical read-only repair.
+    Codeload is GitHub's public exact-commit archive endpoint; private repos fail
+    closed. Both compressed bytes and extracted inventory have hard limits.
+    """
+    commit=context['commit']
+    if not re.fullmatch(r'[0-9a-f]{40,64}',commit):
+        raise RuntimeError('invalid exact expected commit')
+    repo=repository(settings)
+    url=f'https://codeload.github.com/{repo}/tar.gz/{commit}'
+    deadline=settings['_deadline']
+    def remaining():
+        value=deadline-time.monotonic()
+        if value<=0:raise _Deadline('production verification deadline exceeded')
+        return value
+    with urlopen(Request(url,headers={'User-Agent':'TWIHN-runtime-readback/1'}),
+                 timeout=min(float(settings.get('timeout',30)),remaining())) as response:
+        if response.status!=200 or response.geturl()!=url:
+            raise RuntimeError('exact production archive redirected or was not HTTP 200')
+        raw=response.read(MAX_COMPRESSED_BYTES+1)
+        if len(raw)>MAX_COMPRESSED_BYTES:raise RuntimeError('production archive compressed byte limit exceeded')
+    remaining()
+    installed=trusted_build.build_inputs(ROOT,remaining)
+    with tempfile.TemporaryDirectory(prefix='twihn-readback-') as temporary:
+        root=Path(temporary);root.chmod(0o700)
+        prefix=repo.split('/')[1]+'-'+commit
+        total=0;seen=set();matched=set();files=set();directories=set()
+        # Explicit and implicit directories participate in the input inventory;
+        # empty extra input directories cannot hide new auto-loaded policy.
+        input_dirs={str(parent) for name in installed for parent in Path(name).parents if str(parent)!='.'}
+        try:
+            with _bounded_archive(raw,remaining) as archive:
+                for member in archive:
+                    remaining()
+                    parts=member.name.rstrip('/').split('/')
+                    normalized='/'.join(parts)
+                    if (parts[0]!=prefix or len(parts)>128 or len(member.name)>4096 or
+                            any(part in ('','.','..') for part in parts) or
+                            '\\' in member.name or not (member.isdir() or member.isfile()) or normalized in seen or member.size<0):
+                        raise RuntimeError('invalid production archive inventory')
+                    parents={'/'.join(parts[:index]) for index in range(1,len(parts))}
+                    if (parents & files or (member.isfile() and (normalized in directories or len(parts)==1))):
+                        raise RuntimeError('invalid production archive inventory')
+                    directories.update(parents)
+                    (directories if member.isdir() else files).add(normalized)
+                    seen.add(normalized);total+=member.size
+                    if len(seen)>50000 or total>MAX_ARCHIVE_BYTES:
+                        raise RuntimeError('production archive extracted inventory limit exceeded')
+                    relative='/'.join(parts[1:])
+                    if not relative:continue
+                    if trusted_build.is_build_input(relative):
+                        if member.isdir():
+                            if relative not in input_dirs:
+                                raise RuntimeError('production build input inventory mismatch')
+                        else:
+                            if relative not in installed:
+                                raise RuntimeError('production build input inventory mismatch')
+                            source=archive.extractfile(member)
+                            if source is None:raise RuntimeError('invalid production archive inventory')
+                            with source:
+                                if source.read()!=installed[relative]:
+                                    raise RuntimeError('production build input bytes differ from installed trusted source')
+                            matched.add(relative)
+                    elif member.isfile() and relative.startswith('data/'):
+                        source=archive.extractfile(member)
+                        if source is None:raise RuntimeError('invalid production archive inventory')
+                        with source:
+                            data=source.read()
+                        if relative.endswith('.json'):strict_json(data)
+                        trusted_build.write_public(root/relative,data)
+                    # Ignore transitional dist, never extract/use fetched output,
+                    # code, schema, configuration or public/_headers as authority.
+        except (tarfile.TarError,OSError,EOFError,zlib.error) as exc:
+            raise RuntimeError('invalid production archive') from exc
+        if matched!=set(installed):
+            raise RuntimeError('production build input inventory mismatch')
+        env=trusted_build.stage(ROOT,root,installed)
+        node=settings.get('node',shutil.which('node'))
+        if not node or not Path(node).is_absolute():raise RuntimeError('absolute production verifier Node required')
+        status,version=trusted_build.run_node(node,['--version'],root,env,remaining,max_output=1024)
+        if status or version.decode().strip()!='v'+installed['.node-version'].decode().strip():
+            raise RuntimeError('production verifier Node differs from pin')
+        status,_=trusted_build.run_node(node,['scripts/build.mjs'],root,env,remaining)
+        if status:
+            raise RuntimeError('production local artifact/tag inventory verification failed during trusted build')
+        status,value=trusted_build.run_node(node,['--input-type=module','-e',_LOCAL_EXPECTATIONS,str(root),context['issueId'],
+                                                str(settings.get('verify_max_requests',MAX_REQUESTS))],root,env,remaining)
+        if status==3:
+            raise RuntimeError('complete tagged readback exceeds production verification request budget')
+        if status:
+            raise RuntimeError('production local artifact/tag inventory verification failed')
+        remaining()
+        result=strict_json(value)
+        tracked={path:base64.b64decode(raw,validate=True) for path,raw in result['tracked'].items()}
+        for path,raw in tracked.items():
+            if path.endswith('.json'):strict_json(raw)
+        return tracked,result['tagging']
 
 
 def api(settings, path):
@@ -71,8 +336,8 @@ def resolve(settings,context):
     commit=response['sha']
     if not re.fullmatch(r'[0-9a-f]{40,64}',commit):
         raise RuntimeError('invalid production commit readback')
-    raw=committed(settings,commit,f'dist/data/issues/{context["issueId"]}.json')
-    parity(json.loads(raw),context)
+    raw=committed(settings,commit,f'data/issues/{context["issueId"]}.json')
+    parity(strict_json(raw),context)
     return dict(commit=commit)
 
 
@@ -210,28 +475,45 @@ def verify(settings,context):
     request_timeout=float(settings.get('timeout',30))
     if not all(math.isfinite(value) and value>0 for value in (timeout,interval,request_timeout)):
         raise RuntimeError('verification/request timeout and poll interval must be positive finite seconds')
+    max_requests=settings.get('verify_max_requests',MAX_REQUESTS)
+    if type(max_requests) is not int or not 1<=max_requests<=MAX_REQUESTS:
+        raise RuntimeError('verification request budget must be an integer from 1 to 128')
+    requests=0
     deadline=time.monotonic()+timeout
 
-    def bounded():
+    def bounded(cost=0):
+        nonlocal requests
         remaining=deadline-time.monotonic()
+        if requests+cost>max_requests:raise RuntimeError('production verification request budget exceeded')
+        requests+=cost
         if remaining<=0:
             raise _Deadline('production verification deadline exceeded')
         return dict(settings,timeout=min(request_timeout,remaining),_deadline=deadline)
 
     def read(path):
-        return api(bounded(),path)
+        # api() creates a fresh scoped client: reserve its token POST AND GET.
+        return api(bounded(2),path)
 
     _production(read,repo,branch,commit)
     issue=context['issueId']
-    paths=['build-manifest.json',f'issues/{issue}/index.html',f'data/issues/{issue}.json']
-    # Immutable source read once, before polling. Wrong frozen/source content
-    # is terminal, not an excuse to resolve a different commit or new review.
-    tracked={path:committed(bounded(),commit,'dist/'+path) for path in paths}
-    manifest=json.loads(tracked['build-manifest.json'])
-    parity(json.loads(tracked[paths[2]]),context)
-    for path in paths[1:]:
+    # Immutable source and complete inventory validated once, before polling.
+    # Wrong source never authorizes another commit/review or a legacy fallback.
+    tracked,tagging=expected_artifacts(bounded(1),context)
+    if (tagging.get('verified') is not True or not tagging.get('assignments') or
+            not tagging.get('affectedTags') or 'data/tags.json' not in tracked or 'tags/index.html' not in tracked):
+        raise RuntimeError('complete tagging evidence required')
+    paths=list(tracked)
+    issue_path=f'data/issues/{issue}.json'
+    manifest=strict_json(tracked['build-manifest.json'])
+    parity(strict_json(tracked[issue_path]),context)
+    for path in paths:
+        if path=='build-manifest.json':continue
         if manifest['artifacts'].get(path)!=digest(tracked[path]):
             raise RuntimeError('production commit manifest does not match its tracked artifacts')
+    # Reserve a complete first attempt; never weaken/partially sample tags to fit.
+    overhead=10 if mode=='cloudflare-check-run' else 8
+    if requests+overhead+len(paths)>max_requests:
+        raise RuntimeError('complete tagged readback exceeds production verification request budget')
     while True:
         try:
             _production(read,repo,branch,commit)
@@ -242,26 +524,31 @@ def verify(settings,context):
                 # Public permalink is /issues/id/, not /issues/id/index.html.
                 request_path=path[:-10] if path.endswith('index.html') else path
                 try:
-                    raw,details=live(bounded(),request_path)
+                    raw,details=live(bounded(1),request_path)
                 except _Deadline:
                     raise
                 except RuntimeError as exc:
                     raise _Pending(str(exc)) from exc
                 if raw!=tracked[path]:
                     raise _Pending(f'live artifact differs from production commit: {path}')
-                evidence.append(details)
+                evidence.append(dict(details,path=path,sha256=digest(raw)))
             # Reject branch movement while requests were in flight.
             _production(read,repo,branch,commit)
-            parity(json.loads(tracked[paths[2]]),context)
+            parity(strict_json(tracked[issue_path]),context)
             bounded()
             return dict(verified=True,production=True,https=True,manifestMatched=True,htmlMatched=True,
                         jsonMatched=True,cacheChecked=True,issueId=issue,reviewedSha256=context['reviewedSha256'],
-                        commit=commit,url=f'https://twihn.com/issues/{issue}/',artifacts=evidence,**deployment)
+                        commit=commit,url=f'https://twihn.com/issues/{issue}/',artifacts=evidence,
+                        checkedPaths=paths,requestBudgetUsed=requests,requestBudget=max_requests,
+                        tagging=dict(tagging,allHistoricalPagesFetched=False,
+                                     inventorySha256=digest(tracked['build-manifest.json'])),**deployment)
         except (_Pending,URLError,TimeoutError) as exc:
             remaining=deadline-time.monotonic()
             if remaining<=0:
                 raise RuntimeError(f'production verification timed out: {exc}') from exc
             time.sleep(min(interval,remaining))
+            if deadline-time.monotonic()<=0:
+                raise RuntimeError(f'production verification timed out: {exc}') from exc
 
 
 def main(argv=None):

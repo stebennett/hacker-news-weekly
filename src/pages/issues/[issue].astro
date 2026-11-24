@@ -1,8 +1,14 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import Issue from '../../components/Issue.astro';
-import { loadArchive } from '../../../scripts/content.mjs';
-export async function getStaticPaths() { const {issues} = await loadArchive(); return issues.map(issue => ({params:{issue:issue.issueId},props:{issue}})); }
-const {issue} = Astro.props;
+import { loadStoryArchive } from '../../../scripts/tags.mjs';
+import type { Tag, StoryRecord } from '../../lib/types';
+export async function getStaticPaths() {
+  const {issues, registry, records} = await loadStoryArchive();
+  const tagsBySlug = new Map<string, Tag>(registry.tags.map((tag: Tag) => [tag.slug, tag]));
+  const recordsById = new Map<string, StoryRecord>(records.map(record => [record.id, record]));
+  return issues.map(issue => ({params:{issue:issue.issueId},props:{issue,tagsBySlug,recordsById}}));
+}
+const {issue, tagsBySlug, recordsById} = Astro.props;
 ---
-<Layout title={`This Week in Hacker News — ${issue.issueId}`} path={`/issues/${issue.issueId}/`}><Issue issue={issue}/><p><a href="/">Latest issue and full archive</a></p></Layout>
+<Layout title={`This Week in Hacker News — ${issue.issueId}`} path={`/issues/${issue.issueId}/`}><Issue issue={issue} tagsBySlug={tagsBySlug} recordsById={recordsById}/><p><a href="/">Latest issue and full archive</a></p></Layout>

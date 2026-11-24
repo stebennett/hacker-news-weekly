@@ -1,0 +1,12 @@
+---
+import TagArchive from '../../../components/TagArchive.astro';
+import { loadStoryArchive, tagArchivePages } from '../../../../scripts/tags.mjs';
+export async function getStaticPaths() {
+  const { stories, registry } = await loadStoryArchive();
+  return tagArchivePages(stories, registry)
+    .filter(archive => archive.page === 1)
+    .map(archive => ({params:{slug:archive.tag.slug},props:{archive,registry}}));
+}
+const { archive, registry } = Astro.props;
+---
+<TagArchive archive={archive} registry={registry}/>

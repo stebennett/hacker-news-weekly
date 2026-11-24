@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://twihn.com/schema/tags.schema.json",
+  "title": "TWIHN public tag registry v1",
+  "$comment": "Runtime validation via scripts/tags.mjs validateRegistry is also required: entries in ascending slug order, unique slugs and NFC/whitespace-collapsed/lowercase label keys. Stored labels must already be trimmed and Unicode NFC; accepted label bytes are preserved. Punctuation remains meaningful. No tag count cap.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 80,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "not": { "pattern": "[^a-z0-9-]" }
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "not": { "pattern": "[\u0000-\u001f\u007f-\u009f]" }
+          }
+        },
+        "required": ["slug", "label"]
+      }
+    }
+  },
+  "required": ["schemaVersion", "tags"]
+}
