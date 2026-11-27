@@ -78,14 +78,28 @@ const paths=new Set(['build-manifest.json',`issues/${issueId}/index.html`,`data/
     'data/tags.json',...selected.map(record=>`data/stories/${record.id}.json`),'tags/index.html']);
 const boundaries=[];
 const route=page=>page.url.slice(1)+'index.html';
+const candidates=[];
 for (const slug of affectedTags) {
     const group=pages.filter(page=>page.tag.slug===slug);
-    for (const index of new Set([0,1,group.length-2,group.length-1])) {
-        if (group[index]) paths.add(route(group[index]));
-    }
+    // Every affected tag retains one deterministic remote page. The complete
+    // inventory remains locally verified by verifyDist; the rest is a bounded
+    // remote sample allocated round-robin below.
+    const routes=[...new Set([0,1,group.length-2,group.length-1]
+        .map(index=>group[index]&&route(group[index])).filter(Boolean))];
+    if (!routes.length) process.exit(3);
+    paths.add(routes[0]);
+    candidates.push({slug,routes:routes.slice(1)});
     for (const index of new Set([0,group.length-2])) {
         if (group[index] && group[index+1]) boundaries.push({slug,left:route(group[index]),right:route(group[index+1]),
             lastId:group[index].stories.at(-1).item.id,firstId:group[index+1].stories[0].item.id});
+    }
+}
+// Add secondary boundary/end samples in deterministic coverage rounds, rather
+// than allowing early tags to consume the entire remote request allowance.
+for (let round=0;candidates.some(candidate=>candidate.routes[round]);round++) {
+    for (const candidate of candidates) {
+        const path=candidate.routes[round];
+        if (path && paths.size<Number(maxPaths)) paths.add(path);
     }
 }
 if (paths.size>Number(maxPaths)) process.exit(3);
@@ -192,6 +206,9 @@ def expected_artifacts(settings,context):
     Codeload is GitHub's public exact-commit archive endpoint; private repos fail
     closed. Both compressed bytes and extracted inventory have hard limits.
     """
+    max_paths=settings.get('verify_max_paths',settings.get('verify_max_requests',MAX_REQUESTS))
+    if type(max_paths) is not int or not 1<=max_paths<=MAX_REQUESTS:
+        raise RuntimeError('complete tagged readback exceeds production verification request budget')
     commit=context['commit']
     if not re.fullmatch(r'[0-9a-f]{40,64}',commit):
         raise RuntimeError('invalid exact expected commit')
@@ -273,7 +290,7 @@ def expected_artifacts(settings,context):
         if status:
             raise RuntimeError('production local artifact/tag inventory verification failed during trusted build')
         status,value=trusted_build.run_node(node,['--input-type=module','-e',_LOCAL_EXPECTATIONS,str(root),context['issueId'],
-                                                str(settings.get('verify_max_requests',MAX_REQUESTS))],root,env,remaining)
+                                                str(max_paths)],root,env,remaining)
         if status==3:
             raise RuntimeError('complete tagged readback exceeds production verification request budget')
         if status:
@@ -478,6 +495,12 @@ def verify(settings,context):
     max_requests=settings.get('verify_max_requests',MAX_REQUESTS)
     if type(max_requests) is not int or not 1<=max_requests<=MAX_REQUESTS:
         raise RuntimeError('verification request budget must be an integer from 1 to 128')
+    # Reserve the archive and every first-attempt API, deployment-poll, and
+    # branch-readback request before source reconstruction plans its live sample.
+    fixed_requests=13 if mode=='cloudflare-check-run' else 11
+    remote_path_budget=max_requests-fixed_requests
+    if remote_path_budget<1:
+        raise RuntimeError('complete tagged readback exceeds production verification request budget')
     requests=0
     deadline=time.monotonic()+timeout
 
@@ -498,7 +521,9 @@ def verify(settings,context):
     issue=context['issueId']
     # Immutable source and complete inventory validated once, before polling.
     # Wrong source never authorizes another commit/review or a legacy fallback.
-    tracked,tagging=expected_artifacts(bounded(1),context)
+    expectation_settings=bounded(1)
+    expectation_settings['verify_max_paths']=remote_path_budget
+    tracked,tagging=expected_artifacts(expectation_settings,context)
     if (tagging.get('verified') is not True or not tagging.get('assignments') or
             not tagging.get('affectedTags') or 'data/tags.json' not in tracked or 'tags/index.html' not in tracked):
         raise RuntimeError('complete tagging evidence required')
@@ -510,8 +535,9 @@ def verify(settings,context):
         if path=='build-manifest.json':continue
         if manifest['artifacts'].get(path)!=digest(tracked[path]):
             raise RuntimeError('production commit manifest does not match its tracked artifacts')
-    # Reserve a complete first attempt; never weaken/partially sample tags to fit.
-    overhead=10 if mode=='cloudflare-check-run' else 8
+    # Defense in depth: the planner receives this exact allocation, but retain
+    # the accounting check before any polling/live fetch begins.
+    overhead=fixed_requests-3
     if requests+overhead+len(paths)>max_requests:
         raise RuntimeError('complete tagged readback exceeds production verification request budget')
     while True:

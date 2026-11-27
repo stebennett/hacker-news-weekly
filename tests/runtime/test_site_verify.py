@@ -90,6 +90,46 @@ class SiteReadbackTests(unittest.TestCase):
         self.assertEqual({item['path']:item['sha256'] for item in result['artifacts']},
                          {path:digest(raw) for path,raw in self.tracked.items()})
 
+    def test_47_story_tag_plan_reserves_fixed_overhead_and_uses_entire_budget(self):
+        """The remote plan must fit before any live request is made.
+
+        This models a valid 47-story issue with 17 affected tags.  Local
+        validation may be complete, while the remote plan is capped at the
+        paths left after the archive, GitHub auth/API, deployment polling, and
+        final branch readback have all been reserved.
+        """
+        tags=[f'tag-{number:02}' for number in range(17)]
+        tracked=dict(self.tracked)
+        for number in range(47):
+            ident=str(1000+number)
+            tracked[f'data/stories/{ident}.json']=json.dumps(dict(schemaVersion=1,id=ident,
+                tagSlugs=[tags[number%len(tags)]],issueIds=[self.context['issueId']])).encode()
+        for slug in tags:
+            tracked[f'tags/{slug}/index.html']=f'<!doctype html><html>{slug}</html>'.encode()
+        expected_max_paths=115 if self.settings.get('deployment_evidence')=='cloudflare-check-run' else 117
+        while len(tracked)<expected_max_paths:
+            path=f'tags/filler/{len(tracked)}/index.html'
+            tracked[path]=f'<!doctype html><html>{path}</html>'.encode()
+        self.assertEqual(len(tracked),expected_max_paths)
+        tracked['build-manifest.json']=json.dumps(dict(artifacts={path:digest(raw) for path,raw in tracked.items()
+            if path!='build-manifest.json'})).encode()
+        tagging=dict(verified=True,expectation='exact-commit-validated-inventory',affectedTags=tags,
+            assignments={str(1000+number):[tags[number%len(tags)]] for number in range(47)},boundaries=[],
+            localTagPageCount=17,localIssueRouteCount=1,allExpectedRoutesLocallyVerified=True)
+        def expected(settings,context):
+            self.assertEqual(settings['verify_max_paths'],expected_max_paths)
+            return tracked,tagging
+        def live(settings,path):
+            name=path+'index.html' if path.endswith('/') else path
+            raw=tracked[name]
+            return raw,dict(url='https://twihn.com/'+path,cacheControl='public, max-age=0, must-revalidate',sha256=digest(raw))
+        with patch.object(site,'expected_artifacts',side_effect=expected),\
+             patch.object(site,'api',self.api),patch.object(site,'live',live):
+            result=site.verify(self.settings,self.context)
+        self.assertEqual(result['requestBudgetUsed'],128)
+        self.assertEqual(result['requestBudget'],128)
+        self.assertEqual(set(result['tagging']['affectedTags']),set(tags))
+
     def test_wrong_live_tag_registry_story_directory_page_or_manifest_is_rejected(self):
         self.assertTrue(callable(site.verify))
         with patch.object(site,'api',self.api),patch.object(site,'live',self.live):
@@ -473,8 +513,8 @@ class ExactArchiveTests(unittest.TestCase):
         self.assertNotIn('tags/untouched/index.html',tracked)
         self.assertNotIn('data/stories/82.json',tracked)
         routes=[path for path in tracked if path.startswith('tags/')]
-        self.assertEqual(routes,['tags/index.html','tags/ai/index.html','tags/ai/2/index.html',
-                                 'tags/ai/4/index.html','tags/ai/5/index.html','tags/single/index.html'])
+        self.assertEqual(routes,['tags/index.html','tags/ai/index.html','tags/single/index.html',
+                                 'tags/ai/2/index.html','tags/ai/4/index.html','tags/ai/5/index.html'])
         self.assertNotIn('tags/ai/3/index.html',tracked)
         self.assertEqual(evidence['affectedTags'],['ai','single'])
         self.assertEqual(evidence['assignments']['1'],['ai','single'])
@@ -484,6 +524,17 @@ class ExactArchiveTests(unittest.TestCase):
         self.assertTrue(evidence['allExpectedRoutesLocallyVerified'])
         self.assertEqual(tracked['data/tags.json'],self.files['data/tags.json'])
         self.assertEqual(tracked['data/stories/1.json'],self.files['data/stories/1.json'])
+
+    def test_budget_aware_remote_sample_keeps_every_affected_tag(self):
+        # 81 selected stories leave room for precisely two tag routes in this
+        # local fixture: one deterministic page for each affected tag. The
+        # complete five-page AI archive remains locally verified by verifyDist.
+        self.settings['verify_max_paths']=88
+        tracked,evidence=self.expected()
+        routes=[path for path in tracked if path.startswith('tags/')]
+        self.assertEqual(routes,['tags/index.html','tags/ai/index.html','tags/single/index.html'])
+        self.assertEqual(evidence['affectedTags'],['ai','single'])
+        self.assertTrue(evidence['allExpectedRoutesLocallyVerified'])
 
     def test_source_only_release_matches_independent_full_build_and_ignores_legacy_output(self):
         tracked,evidence=self.expected()
