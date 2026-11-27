@@ -10,6 +10,14 @@
       "slug": "aviation"
     },
     {
+      "label": "Careers",
+      "slug": "careers"
+    },
+    {
+      "label": "Community",
+      "slug": "community"
+    },
+    {
       "label": "Copyright",
       "slug": "copyright"
     },
@@ -58,12 +66,20 @@
       "slug": "hardware"
     },
     {
+      "label": "Immigration",
+      "slug": "immigration"
+    },
+    {
       "label": "Literature",
       "slug": "literature"
     },
     {
       "label": "Maps",
       "slug": "maps"
+    },
+    {
+      "label": "Mathematics",
+      "slug": "mathematics"
     },
     {
       "label": "News",
@@ -112,6 +128,10 @@
     {
       "label": "Typography",
       "slug": "typography"
+    },
+    {
+      "label": "Virtualization",
+      "slug": "virtualization"
     },
     {
       "label": "Web Browsers",

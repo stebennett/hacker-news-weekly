@@ -1,0 +1,1541 @@
+{
+  "collectedAt": "2026-11-27T14:24:31.661325Z",
+  "displayTimezone": "Europe/London",
+  "issueId": "2026-11-27",
+  "items": {
+    "50574383": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 943,
+      "discussion": "Discussion ranged across AI-company valuations, IPO timing, financial disclosures, and whether frontier-model providers have durable moats. Commenters also argued over the prospects for profitability and the role of open-weight models.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50574383",
+      "id": "50574383",
+      "kind": "story",
+      "score": 531,
+      "sourceUrl": "https://www.theguardian.com/business/2026/nov/20/global-stock-markets-slump-anthropic-ipo-ai-sell-off",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.theguardian.com/business/2026/nov/20/global-stock-markets-slump-anthropic-ipo-ai-sell-off"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50574383"
+        }
+      ],
+      "story": "The Guardian reported that an AI-related sell-off erased the Nasdaq’s 2026 gains as Anthropic’s shares traded only slightly above their IPO price on its second day. The article framed the move around investor concern over the scale and returns of AI infrastructure spending.",
+      "submittedAt": "2026-11-20T13:29:59Z",
+      "title": "Nasdaq erases all 2026 gains as AI sell-off dampens Anthropic’s second day"
+    },
+    "50574412": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 97,
+      "discussion": "Players praised the game and reported loading delays, Firefox issues, and control feedback. The maker discussed caching, model delivery, map expansion, performance work, and plans for additional locations.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50574412",
+      "id": "50574412",
+      "kind": "show",
+      "score": 132,
+      "sourceUrl": "https://cherwellvalleymotorclub.app",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://cherwellvalleymotorclub.app"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50574412"
+        }
+      ],
+      "story": "Cherwell Valley Motor Club is a browser driving game set on roads around North Oxfordshire, with classic cars, time trials, and multiplayer racing. The project’s description includes cars from a 1979 Triumph TR7 to an MG Metro 6R4.",
+      "submittedAt": "2026-11-20T13:32:42Z",
+      "title": "Show HN: Drive around my village in 3D"
+    },
+    "50574968": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked PDF could not be text-reviewed during research; summary is limited to the HN submission and discussion.",
+          "status": "unavailable"
+        }
+      },
+      "comments": 2127,
+      "discussion": "Discussion focused on the claimed Lean formalization, its reported size and memory requirements, and how formal verification would affect confidence in the claim. Commenters also contrasted forced proofs with counterexamples and noted that the underlying mathematical result still required careful review.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50574968",
+      "id": "50574968",
+      "kind": "story",
+      "score": 2935,
+      "sourceUrl": "https://alpo.ge/remark.pdf",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://alpo.ge/remark.pdf"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50574968"
+        }
+      ],
+      "story": "Levent Alpöge released a PDF claiming a proof of the Generalized Riemann Hypothesis and linked Lean formalization materials, but the cached PDF could not be text-reviewed. The summary is therefore limited to the submission title and visible discussion context.",
+      "submittedAt": "2026-11-20T14:16:21Z",
+      "title": "Levent Alpöge claims proof of the Generalized Riemann Hypothesis [pdf]"
+    },
+    "50576855": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 642,
+      "discussion": "Discussion contrasted Framework’s repairability and modularity with reliability, support, and the cost of downtime for work machines. Owners reported both positive and negative experiences, while others compared the trade-off with Apple hardware.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50576855",
+      "id": "50576855",
+      "kind": "story",
+      "score": 841,
+      "sourceUrl": "https://poolp.org/posts/2026-11-20/ill-never-buy-framework-hardware-again/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://poolp.org/posts/2026-11-20/ill-never-buy-framework-hardware-again/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50576855"
+        }
+      ],
+      "story": "The author said a Framework laptop arrived with a defective keyboard and criticized the company’s support, while later asking readers not to escalate the episode further and saying the goal was a working laptop. The linked post is a short update rather than a detailed incident report.",
+      "submittedAt": "2026-11-20T16:06:30Z",
+      "title": "I'll never buy Framework hardware again"
+    },
+    "50577613": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 183,
+      "discussion": "The AMA covered O-1, H-1B, E-2, and L-1 options, consular processing, requests for evidence, and immigration changes affecting startup hiring. Roberts and other lawyers emphasized that eligibility depends on individual facts.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50577613",
+      "id": "50577613",
+      "kind": "ask",
+      "score": 134,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50577613"
+        }
+      ],
+      "story": "Peter Roberts, an immigration attorney who works with YC and startups, hosted an Ask Me Anything about immigration matters for founders and startup employees.",
+      "submittedAt": "2026-11-20T16:45:25Z",
+      "title": "I'm Peter Roberts, immigration attorney who does work for YC and startups. AMA"
+    },
+    "50579568": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 1226,
+      "discussion": "The thread debated the incentives created by rapid AI-assisted mathematical claims, publication priority, and whether intermediate human understanding remains valuable. Commenters stressed that proposed proofs still need conventional community scrutiny.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50579568",
+      "id": "50579568",
+      "kind": "story",
+      "score": 2454,
+      "sourceUrl": "https://math216.wordpress.com/2026/11/20/hurried-announcement-alessandro-masullo-grh/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://math216.wordpress.com/2026/11/20/hurried-announcement-alessandro-masullo-grh/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50579568"
+        }
+      ],
+      "story": "Ravi Vakil posted a hurried announcement of Alessandro Maria Masullo’s proposed human-written proof of GRH, noting Brian Conrad’s extended review and later reporting that people had identified issues with AI assistance. The post says the draft was mid-revision and should not be accepted until the mathematical community resolves all issues.",
+      "submittedAt": "2026-11-20T18:33:14Z",
+      "title": "Hurried Announcement: Alessandro Masullo GRH"
+    },
+    "50581260": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 297,
+      "discussion": "Readers compared the model with other locally runnable systems, discussed hardware and inference support, and shared early impressions of its coding and tool-use behavior. The looping architecture was compared with earlier recurrent and Universal Transformer ideas.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50581260",
+      "id": "50581260",
+      "kind": "story",
+      "score": 1488,
+      "sourceUrl": "https://thinkingmachines.ai/news/inkling-2-mini/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://thinkingmachines.ai/news/inkling-2-mini/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50581260"
+        }
+      ],
+      "story": "Thinking Machines Lab released Inkling 2 Mini, an open-weights looped Mixture-of-Experts model with 26.4B total parameters and 3.4B active parameters. The company says repeated middle layers let it reason with fewer output tokens, improve coding performance, and make some monitoring questions more tractable.",
+      "submittedAt": "2026-11-20T20:12:19Z",
+      "title": "Inkling 2 Mini"
+    },
+    "50581403": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 36,
+      "discussion": "Discussion addressed the project’s name, isolation design, pricing and model-routing claims made by Devin employees, cloud requirements, and the practical differences between open and commercial coding agents.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50581403",
+      "id": "50581403",
+      "kind": "show",
+      "score": 131,
+      "sourceUrl": "https://github.com/diggerhq/opencomputer",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/diggerhq/opencomputer"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50581403"
+        }
+      ],
+      "story": "OpenComputer is an Apache-2.0 open-source coding-agent system presented as a faster alternative to Devin. Its maintainers describe organization-dedicated VM fleets, rootless Podman sandboxes, bring-your-own Claude Code or Codex, and integrations including Cloudflare Workers for Slack events.",
+      "submittedAt": "2026-11-20T20:19:56Z",
+      "title": "Show HN: OpenComputer – an open source alternative to Devin"
+    },
+    "50583761": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 867,
+      "discussion": "Responses offered job-search tactics, networking, recruiter and resume advice, self-employment ideas, and personal encouragement. The discussion also covered how role labels and recent AI experience affect screening.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50583761",
+      "id": "50583761",
+      "kind": "ask",
+      "score": 754,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50583761"
+        }
+      ],
+      "story": "The Ask HN author said they had been unemployed in the United States for two years despite 15 years of experience and asked what to do next.",
+      "submittedAt": "2026-11-20T23:18:32Z",
+      "title": "Ask HN: I have been unemployed for 2y. 15 years of experience, US. What to do?"
+    },
+    "50589184": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 39,
+      "discussion": "Players gave feedback on loading, controls, UI, AI opponents, checkpoints, and visual style. The maker described technical choices and acknowledged limitations in the custom AI.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50589184",
+      "id": "50589184",
+      "kind": "show",
+      "score": 52,
+      "sourceUrl": "https://outpostracer.com",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://outpostracer.com"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50589184"
+        }
+      ],
+      "story": "Outpost Racer is a browser-based PS1-style racing game built with Three.js and Rapier physics. The maker said it was created in four days, uses AI-generated car models, and offers low-graphics settings and destructible elements.",
+      "submittedAt": "2026-11-21T13:47:45Z",
+      "title": "Show HN: I made a PS1 style racing game"
+    },
+    "50589618": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 1060,
+      "discussion": "Discussion examined what formal verification establishes, how much trust remains in foundations and checkers, and whether this evidence exceeds ordinary peer review. Commenters also distinguished a verified formal theorem from broader philosophical questions about mathematical certainty.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50589618",
+      "id": "50589618",
+      "kind": "story",
+      "score": 1251,
+      "sourceUrl": "https://leanprover-community.github.io/blog/posts/riemann-hypothesis/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://leanprover-community.github.io/blog/posts/riemann-hypothesis/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50589618"
+        }
+      ],
+      "story": "The Lean FRO and Mathlib Initiative said they had high confidence in Levent Alpöge’s Lean proof of the Riemann Hypothesis. Their statement says the 17-million-line library compiled, the theorem was independently compared with Mathlib’s formal statement, and the exported proof was checked by multiple proof checkers.",
+      "submittedAt": "2026-11-21T14:36:45Z",
+      "title": "Lean verification of the Riemann Hypothesis"
+    },
+    "50590279": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 137,
+      "discussion": "Commenters debated arena allocation, reference counting, deterministic resource control, and how much control modern .NET already gives developers over allocation and garbage collection.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50590279",
+      "id": "50590279",
+      "kind": "show",
+      "score": 181,
+      "sourceUrl": "https://onurgumus.github.io/zero-csharp/index.html",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://onurgumus.github.io/zero-csharp/index.html"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50590279"
+        }
+      ],
+      "story": "Zero C# is a bflat fork that compiles C# to small native programs without the .NET runtime or garbage collector. It retains C# syntax, type checking, generics, and several language features while using arenas and a small supporting library across targets including desktop systems, WebAssembly, DOS, UEFI, and the Commodore 64.",
+      "submittedAt": "2026-11-21T15:39:09Z",
+      "title": "Show HN: Zero C# – C# without a runtime or GC"
+    },
+    "50595537": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 568,
+      "discussion": "The thread debated the problem of other minds, moral caution under uncertainty, whether behavioral evidence can establish consciousness, and how much ethical weight to give possible artificial suffering.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50595537",
+      "id": "50595537",
+      "kind": "story",
+      "score": 181,
+      "sourceUrl": "https://www.noemamag.com/the-mythology-of-conscious-ai/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.noemamag.com/the-mythology-of-conscious-ai/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50595537"
+        }
+      ],
+      "story": "In a Noema essay, Anil Seth argues that consciousness is more likely a property of living systems than computation and warns against creating conscious or conscious-seeming AI. The essay places contemporary AI claims in a longer cultural history of artificial minds and asks why moral status would matter.",
+      "submittedAt": "2026-11-22T02:10:02Z",
+      "title": "The Mythology of Conscious AI"
+    },
+    "50596133": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 743,
+      "discussion": "Discussion compared the plan with historical platform sharing and debated when standardization improves repairability and lowers costs versus when proprietary parts create problems. Commenters used headlights, bulbs, fuses, and electronics as examples of the current variety of automotive parts.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50596133",
+      "id": "50596133",
+      "kind": "story",
+      "score": 1403,
+      "sourceUrl": "https://www.caranddriver.com/news/a74490092/toyota-nissan-honda-standardize-parts-lower-costs/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.caranddriver.com/news/a74490092/toyota-nissan-honda-standardize-parts-lower-costs/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50596133"
+        }
+      ],
+      "story": "Car and Driver reported that Toyota, Nissan, and Honda plan to standardize selected vehicle-part specifications to lower costs and compete more effectively with Chinese automakers. Initial work includes common quality criteria for steel, protocols for plastics and resins, and shared wiring-harness color coding.",
+      "submittedAt": "2026-11-22T04:04:56Z",
+      "title": "Toyota, Nissan, and Honda to standardize parts to lower costs"
+    },
+    "50596664": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 60,
+      "discussion": "Discussion asked whether the material was complete and independently reproducible, compared it with other attempted formalizations, and discussed compiling the Lean source and the limits of understanding a large formal proof.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50596664",
+      "id": "50596664",
+      "kind": "show",
+      "score": 89,
+      "sourceUrl": "https://github.com/tamnd/riemann-handbook",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/tamnd/riemann-handbook"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50596664"
+        }
+      ],
+      "story": "The Riemann Proof Handbook repository presents the claimed Riemann Hypothesis proof in tamnd/riemann-lean as mathematical prose and PDF and EPUB material. It is intended as an accessible companion to the Lean formalization.",
+      "submittedAt": "2026-11-22T05:46:30Z",
+      "title": "Show HN: The Riemann Proof Handbook"
+    },
+    "50597612": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 1011,
+      "discussion": "Commenters debated the study’s assumptions, comparisons with other sources of emissions, energy efficiency, and the consequences of data-center demand. The exchange also covered grid-connection constraints and whether dedicated generation is primarily a regulatory and infrastructure response.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50597612",
+      "id": "50597612",
+      "kind": "story",
+      "score": 1043,
+      "sourceUrl": "https://betterdatacenterproject.com/2026/11/16/how-ai-is-powered-a-breakdown-of-byop-and-grid-power/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://betterdatacenterproject.com/2026/11/16/how-ai-is-powered-a-breakdown-of-byop-and-grid-power/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50597612"
+        }
+      ],
+      "story": "The Better Data Center Project analyzed Anthropic’s announced and associated compute power and estimated that its 2028 electricity supply could be dominated by gas and coal, with potential emissions of 32 million metric tons of CO2. The case study argues that AI data-center growth is driving both dedicated gas generation and new grid fossil capacity.",
+      "submittedAt": "2026-11-22T08:57:34Z",
+      "title": "87% of the Anthropic power will come from gas and 11% from coal in 2028"
+    },
+    "50599762": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 90,
+      "discussion": "The discussion mixed reactions to the game’s premise with broader talk about agentic development, automation, and the appeal and unease of building systems that build more systems.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50599762",
+      "id": "50599762",
+      "kind": "show",
+      "score": 362,
+      "sourceUrl": "https://github.com/gulivan/worker755",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/gulivan/worker755"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50599762"
+        }
+      ],
+      "story": "Worker755 is an open-source browser game in which the player acts as a subagent for an AI manager. Its repository points to the playable game at worker755.com.",
+      "submittedAt": "2026-11-22T13:56:58Z",
+      "title": "Show HN: I built a game where you are an LLM's subagent"
+    },
+    "50600771": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 126,
+      "discussion": "Commenters described regional variation, apprenticeship bottlenecks, injury and boom-bust risks, and the value of training while keeping a current job. The thread also debated how automation and AI could affect both trade and software work.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50600771",
+      "id": "50600771",
+      "kind": "ask",
+      "score": 89,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50600771"
+        }
+      ],
+      "story": "An Ask HN poster asked whether moving into the trades would be a safe career transition.",
+      "submittedAt": "2026-11-22T15:52:33Z",
+      "title": "Ask HN: Are the trades a safe career transition?"
+    },
+    "50602561": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 22,
+      "discussion": "Discussion compared the design with C++, OCaml, Swift, Rust, and other languages, debating syntax, ABI compatibility, exhaustive matching, and whether the proposed features fit C’s existing type system.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50602561",
+      "id": "50602561",
+      "kind": "show",
+      "score": 52,
+      "sourceUrl": "https://github.com/stass/type-c",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/stass/type-c"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50602561"
+        }
+      ],
+      "story": "Type-C is a C11 extension that adds variants, options, generics, result types, defer-style cleanup, and exhaustive pattern matching. Its author reported rewriting a tomlc99 parser as a test and said fault-injection and sanitizer runs found no leaks or use-after-free errors in the Type-C version.",
+      "submittedAt": "2026-11-22T18:40:57Z",
+      "title": "Show HN: Type-C – variants, options, generics and pattern matching for C"
+    },
+    "50611576": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 3829,
+      "discussion": "Commenters reacted to Huang’s return as a corporate-governance and market event, discussing whether Nvidia was effectively too important to lose him and tracking the immediate share-price move. Some compared the episode with other high-profile technology leaders.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50611576",
+      "id": "50611576",
+      "kind": "story",
+      "score": 2856,
+      "sourceUrl": "https://www.cnbc.com/2026/11/23/nvidia-jensen-huang-ceo.html",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.cnbc.com/2026/11/23/nvidia-jensen-huang-ceo.html"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50611576"
+        }
+      ],
+      "story": "CNBC reported that Nvidia reinstated Jensen Huang as CEO after his November 13 resignation, saying the board had consulted senior U.S. government officials and that the stock rose following the announcement. The article said Huang had disclosed an affair and that the board concluded his return presented no national-security risk.",
+      "submittedAt": "2026-11-23T14:00:18Z",
+      "title": "Nvidia Reinstates Jensen Huang as CEO"
+    },
+    "50611588": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 4,
+      "discussion": "The small HN thread mainly redirected discussion to the related CNBC submission and contained brief reactions to the board’s decision.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50611588",
+      "id": "50611588",
+      "kind": "story",
+      "score": 1714,
+      "sourceUrl": "https://nvidianews.nvidia.com/news/nvidia-board-reinstates-jensen-huang-as-president-ceo-and-board-director",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://nvidianews.nvidia.com/news/nvidia-board-reinstates-jensen-huang-as-president-ceo-and-board-director"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50611588"
+        }
+      ],
+      "story": "Nvidia’s board announced that Jensen Huang had been reinstated immediately as president, CEO, and board director after unanimous approval. The company said it had received senior U.S. government input, found no national-security risk, and thanked interim CEO Colette Kress.",
+      "submittedAt": "2026-11-23T14:01:23Z",
+      "title": "Jensen Huang Reinstated as Nvidia CEO"
+    },
+    "50611593": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 13,
+      "discussion": "Discussion welcomed the emphasis on rigorous optimization and independent review, while asking how the system constrains experiments, validates claims, and compares with simpler prompts to improve performance.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50611593",
+      "id": "50611593",
+      "kind": "show",
+      "score": 134,
+      "sourceUrl": "https://chszlab.github.io/AgenticAlgorithmEngineering/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://chszlab.github.io/AgenticAlgorithmEngineering/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50611593"
+        }
+      ],
+      "story": "Agentic Algorithm Engineering is a skill for Claude Code and Codex that structures code optimization around falsifiable hypotheses, benchmarks, correctness checks, minimal patches, and a final PDF report. The project reports speedups on several established open-source programs while retaining stated correctness properties.",
+      "submittedAt": "2026-11-23T14:02:15Z",
+      "title": "Show HN: An agent skill that optimizes code with falsifiable hypotheses"
+    },
+    "50614249": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 641,
+      "discussion": "Discussion examined the project’s browser-engine independence, including the use of Skia and ANGLE, alongside implementation choices such as SQLite and graphics support. Commenters also discussed the practical trade-offs involved in building a new browser engine.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50614249",
+      "id": "50614249",
+      "kind": "story",
+      "score": 2463,
+      "sourceUrl": "https://ladybird.org/posts/alpha/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://ladybird.org/posts/alpha/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50614249"
+        }
+      ],
+      "story": "Ladybird announced its first alpha release for macOS and Linux. The project says the browser uses a new engine built from the ground up, is still incomplete and crash-prone, and invites bug reports, security research, website testing, and contributions through a rolling update channel.",
+      "submittedAt": "2026-11-23T16:13:12Z",
+      "title": "Ladybird is now in alpha"
+    },
+    "50615308": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 1205,
+      "discussion": "Discussion centered on whether safety rhetoric reflects sincere risk assessment or a bid for a regulatory moat. Commenters also debated the feasibility of governing advanced AI, catastrophic-risk scenarios, and the incentives for states and firms to continue development.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50615308",
+      "id": "50615308",
+      "kind": "story",
+      "score": 2023,
+      "sourceUrl": "https://twitter.com/ylecun/status/2124550037912920090",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://twitter.com/ylecun/status/2124550037912920090"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50615308"
+        }
+      ],
+      "story": "Yann LeCun argued in an X post that Dario Amodei has overstated AI dangers in order to support restrictions on open models and retain control. LeCun compared such restrictions with historical limits on access to knowledge.",
+      "submittedAt": "2026-11-23T17:07:26Z",
+      "title": "\"Dario is hyping the dangers so OSS models are illegal and he stays in control\""
+    },
+    "50622638": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source could not be retrieved during research; summary is limited to the HN submission and discussion.",
+          "status": "unavailable"
+        }
+      },
+      "comments": 743,
+      "discussion": "Commenters discussed repository deletion versus loss of code, preservation through mirrors and forks, and the practical and legal context around game recompilation projects. The thread also included arguments about young developers and AI-assisted development.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50622638",
+      "id": "50622638",
+      "kind": "story",
+      "score": 398,
+      "sourceUrl": "https://github.com/ItsNotRexed/Leonida/issues",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/ItsNotRexed/Leonida/issues"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50622638"
+        }
+      ],
+      "story": "The linked GitHub issues page was unavailable to the cached researcher, so the summary is limited to the submission: the GTA 6 recompilation project Leonida was removed from GitHub while its lead developer was at school.",
+      "submittedAt": "2026-11-24T02:08:09Z",
+      "title": "GTA 6 Recomp (Leonida) banned from GitHub while lead dev was in school"
+    },
+    "50622809": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 46,
+      "discussion": "Replies focused on breaking work into smaller reviewable changes, surfacing architectural disagreements early, seeking team and manager alignment, and separating maintainability concerns from interpersonal conflict.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50622809",
+      "id": "50622809",
+      "kind": "ask",
+      "score": 22,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50622809"
+        }
+      ],
+      "story": "An Ask HN poster said that a coworker rejected a large pull request after a month of work because it did not meet that coworker’s standards.",
+      "submittedAt": "2026-11-24T02:31:21Z",
+      "title": "Ask HN: Coworker rejects PR (a month in) because it does not meet his standards"
+    },
+    "50623232": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 28,
+      "discussion": "Readers compared it with other synthesis-learning resources, praised the signal-flow presentation, and gave feedback about matching sensitivity and Web Audio behavior.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50623232",
+      "id": "50623232",
+      "kind": "show",
+      "score": 144,
+      "sourceUrl": "https://swarkentin.github.io/synth-patch-hero/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://swarkentin.github.io/synth-patch-hero/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50623232"
+        }
+      ],
+      "story": "Synth Patch Hero is a browser-based modular-synthesis learning game. Players take gigs, patch virtual modules, adjust controls, and try to match reference sounds by ear and graph, with lessons unlocked through a 90% match target.",
+      "submittedAt": "2026-11-24T03:24:22Z",
+      "title": "Show HN: Synth Patch Hero"
+    },
+    "50624684": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 26,
+      "discussion": "Discussion compared it with Everything, Cathy, ncdu, and locate-style indexes, and covered safe parsing of untrusted files, removable-media cataloging, indexing, and the maker’s use of AI-assisted development.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50624684",
+      "id": "50624684",
+      "kind": "show",
+      "score": 54,
+      "sourceUrl": "https://www.rchive.computer/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.rchive.computer/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50624684"
+        }
+      ],
+      "story": "RCHIVE is a paid cross-platform desktop application for cataloging, searching, and organizing files across computers and disconnected drives. It keeps names, locations, metadata, and previews available after a drive is unplugged and does not modify the underlying files for its organizational views.",
+      "submittedAt": "2026-11-24T07:03:33Z",
+      "title": "Show HN: Rchive – Every drive I've owned since the 90s, searchable in one window"
+    },
+    "50627783": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 616,
+      "discussion": "Commenters discussed recompilation projects, PC gaming, cloud-streaming latency, modding, and whether the game engine already makes a Windows version technically plausible. The thread also linked the result to the risks and durability of unofficial projects.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50627783",
+      "id": "50627783",
+      "kind": "story",
+      "score": 522,
+      "sourceUrl": "https://twitter.com/raul_bs3/status/2125213756238291075",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://twitter.com/raul_bs3/status/2125213756238291075"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50627783"
+        }
+      ],
+      "story": "An X post showed GTA 6 running on a Windows PC and attributed the result to the VIctory project, Vulkan, and rapid work after a cyberleak. The post characterized the result as an early, incomplete PC reconstruction rather than an official release.",
+      "submittedAt": "2026-11-24T13:19:31Z",
+      "title": "GTA 6 Running on Windows"
+    },
+    "50627836": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source could not be retrieved during research; summary is limited to the HN submission and discussion.",
+          "status": "unavailable"
+        }
+      },
+      "comments": 800,
+      "discussion": "The discussion used the price move to debate frontier labs’ business models, the competitive effects of open-weight models, inference economics, and whether current AI products can justify very large valuations.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50627836",
+      "id": "50627836",
+      "kind": "story",
+      "score": 433,
+      "sourceUrl": "https://www.bloomberg.com/news/articles/2026-11-24/anthropic-breaks-below-83-ipo-price-in-premarket-trading",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://www.bloomberg.com/news/articles/2026-11-24/anthropic-breaks-below-83-ipo-price-in-premarket-trading"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50627836"
+        }
+      ],
+      "story": "The linked Bloomberg story was unavailable to the cached researcher, so the summary is limited to the HN submission: Anthropic traded below its $83 IPO price.",
+      "submittedAt": "2026-11-24T13:23:47Z",
+      "title": "Anthropic breaks below $83 IPO price"
+    },
+    "50630294": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 21,
+      "discussion": "Commenters asked about replication, semantic compatibility, data sources, storage, and concurrent analytics workloads. The maker explained that Mason’s main work is replication plus query rewriting and that it is initially aimed at sporadic BI queries.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50630294",
+      "id": "50630294",
+      "kind": "show",
+      "score": 109,
+      "sourceUrl": "https://masondata.ai/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://masondata.ai/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50630294"
+        }
+      ],
+      "story": "Mason is an Apache-2.0, Node.js-based Postgres read-replica system for analytics that syncs selected data into DuckDB and rewrites Postgres queries for columnar execution. The site claims the same SQL and answers while showing an example query running 81 times faster on 10 million rows, and includes agent-oriented access controls and logging.",
+      "submittedAt": "2026-11-24T16:11:52Z",
+      "title": "Show HN: Mason – A lightweight Postgres read-replica, built on columnar storage"
+    },
+    "50630809": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 359,
+      "discussion": "Replies suggested preserving evidence such as test harnesses and development history, consulting counsel, reviewing usage patterns and API-key security, or changing providers. Commenters also questioned how confidently a provider can identify distillation.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50630809",
+      "id": "50630809",
+      "kind": "ask",
+      "score": 470,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50630809"
+        }
+      ],
+      "story": "An Ask HN poster said Anthropic had accused their company of model distillation and asked how they could demonstrate that they had not done it.",
+      "submittedAt": "2026-11-24T16:45:44Z",
+      "title": "Ask HN: Anthropic is accusing my company of distilling. How can I prove I'm not?"
+    },
+    "50637220": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source could not be retrieved during research; summary is limited to the HN submission and discussion.",
+          "status": "unavailable"
+        }
+      },
+      "comments": 607,
+      "discussion": "Discussion focused on the precise meaning of an asymptotic exponent, lower versus upper bounds, rectangular-matrix cases, and whether the title accurately stated the reported result. Commenters repeatedly noted that the algorithms concerned may remain impractical.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50637220",
+      "id": "50637220",
+      "kind": "story",
+      "score": 1067,
+      "sourceUrl": "https://github.com/openai/math/blob/main/preprints/The-matrix-multiplication-exponent-is-nine-fourths-November-24-2026/paper.pdf",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/openai/math/blob/main/preprints/The-matrix-multiplication-exponent-is-nine-fourths-November-24-2026/paper.pdf"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50637220"
+        }
+      ],
+      "story": "The linked PDF was unavailable because the cached fetch returned HTTP 503, so the summary is limited to the HN title and discussion: it claims that the matrix-multiplication exponent is exactly 9/4.",
+      "submittedAt": "2026-11-25T01:19:26Z",
+      "title": "The matrix multiplication exponent is nine fourths [pdf]"
+    },
+    "50638503": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 80,
+      "discussion": "Readers shared nostalgia for early GPU demos, requested missing examples, and reported visual glitches. The conversation also considered the changing role of showcase artwork in graphics hardware marketing.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50638503",
+      "id": "50638503",
+      "kind": "show",
+      "score": 355,
+      "sourceUrl": "https://gpu-demo-gallery.pages.dev/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://gpu-demo-gallery.pages.dev/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50638503"
+        }
+      ],
+      "story": "GPU Demos is a browser gallery that rebuilds graphics-card technology demos from 3dfx, Nvidia, and ATI from 1998 through 2006 using their original files. It offers filters, runnable demos, and source links.",
+      "submittedAt": "2026-11-25T04:31:48Z",
+      "title": "Show HN: Old Nvidia and ATI tech demos, running again in the browser"
+    },
+    "50642300": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 7,
+      "discussion": "Commenters asked about compatible hardware and cost, praised the project as a playful desk accessory, and suggested keeping the network-connected device isolated despite its limited hardware.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50642300",
+      "id": "50642300",
+      "kind": "show",
+      "score": 57,
+      "sourceUrl": "https://github.com/click6067-ship-it/token-tv",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/click6067-ship-it/token-tv"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50642300"
+        }
+      ],
+      "story": "TokenTV turns a roughly $5 photo-upload-capable AliExpress desk clock into a pixel pet for Claude Code and Codex agents, displaying agent activity and usage limits without firmware flashing.",
+      "submittedAt": "2026-11-25T13:51:44Z",
+      "title": "Show HN: Turned a $5 AliExpress clock into a desk Clawd pet(+usage)"
+    },
+    "50643767": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 55,
+      "discussion": "Commenters argued about switching costs, personal tools, niche projects, quality control, and whether AI-generated software is often invisible because it is customized or indistinguishable from ordinary software. Some cited new tools and fan-game recompilations as examples.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50643767",
+      "id": "50643767",
+      "kind": "ask",
+      "score": 20,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50643767"
+        }
+      ],
+      "story": "An Ask HN post asked why more remarkable AI-generated software was not visibly displacing established products.",
+      "submittedAt": "2026-11-25T16:02:31Z",
+      "title": "Ask HN: Where is all the amazing AI-generated software?"
+    },
+    "50644817": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 717,
+      "discussion": "Commenters focused on the operational controls that limit a single administrator or compromised account, particularly GitHub rulesets, branch-protection bypasses, review requirements, and separation of duties. The thread also discussed defense-in-depth in password-manager architecture.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50644817",
+      "id": "50644817",
+      "kind": "story",
+      "score": 1683,
+      "sourceUrl": "https://1password.com/blog/update-on-nov-2026-security-incident",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://1password.com/blog/update-on-nov-2026-security-incident"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50644817"
+        }
+      ],
+      "story": "1Password reported a security incident involving backend systems and said customer vaults and vault contents were not affected. Its update described an investigation and positioned the architecture as protecting vault data even when backend systems are involved in an incident.",
+      "submittedAt": "2026-11-25T17:18:26Z",
+      "title": "1Password Security Incident"
+    },
+    "50646108": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 1860,
+      "discussion": "Readers discussed what formal results might mean in practice, how quickly claims can be assessed, and possible implications for cryptography and quantum computing. Several urged caution until results are sorted into durable applications and more limited curiosities.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50646108",
+      "id": "50646108",
+      "kind": "story",
+      "score": 2025,
+      "sourceUrl": "https://scottaaronson.blog/?p=10379",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://scottaaronson.blog/?p=10379"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50646108"
+        }
+      ],
+      "story": "Scott Aaronson wrote about a rapid series of claimed formal mathematics results, including claims about VP versus VNP and an exact matrix-multiplication exponent of 9/4. He emphasized the significance of a lower bound above 2 for matrix multiplication and treated the announcements as a major change in mathematical research.",
+      "submittedAt": "2026-11-25T19:11:27Z",
+      "title": "Holy shit holy shit holy shit holy shit: The magnitude of what’s now happening"
+    },
+    "50649864": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 155,
+      "discussion": "Discussion included dang’s explanations of bounded and expensive filtering, moderation labels, account behavior, AI-written submissions, agent-facing guidance, and the trade-off between transparency and abuse resistance.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50649864",
+      "id": "50649864",
+      "kind": "ask",
+      "score": 408,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50649864"
+        }
+      ],
+      "story": "HN moderator dang posted about another period with many Ask HN submissions, prompting questions about how the site ranks, filters, and moderates them.",
+      "submittedAt": "2026-11-26T00:43:34Z",
+      "title": "Tell HN: Lots of Ask HNs again"
+    },
+    "50651099": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 51,
+      "discussion": "Discussion compared Olumino with Anki, Obsidian, and Mochi, focusing on interface design, mobile use, card management, sync, and the value of spaced-repetition learning.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50651099",
+      "id": "50651099",
+      "kind": "show",
+      "score": 121,
+      "sourceUrl": "https://olumino.app",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://olumino.app"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50651099"
+        }
+      ],
+      "story": "Olumino is a Markdown notes and flashcards application with FSRS-7 spaced repetition, note-to-card conversion, free decks, classes, imports and exports, and support for math, code, pictures, and multiple study modes.",
+      "submittedAt": "2026-11-26T03:33:06Z",
+      "title": "Show HN: Olumino, a Markdown notes and spaced repetition app"
+    },
+    "50655664": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 156,
+      "discussion": "The comments returned the greeting, discussed the holiday’s U.S. context and traditions, and included light conversation about work, security incidents, and federal holidays.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50655664",
+      "id": "50655664",
+      "kind": "ask",
+      "score": 704,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50655664"
+        }
+      ],
+      "story": "A Tell HN post wished the community a happy Thanksgiving.",
+      "submittedAt": "2026-11-26T14:26:54Z",
+      "title": "Tell HN: Happy Thanksgiving"
+    },
+    "50655868": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 78,
+      "discussion": "Discussion covered learning Vim, maintaining configurations, long-line performance, mouseless workflows, and whether AI assistance helps or undermines understanding of editor configuration.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50655868",
+      "id": "50655868",
+      "kind": "show",
+      "score": 237,
+      "sourceUrl": "http://themouseless.dev/vim/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "http://themouseless.dev/vim/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50655868"
+        }
+      ],
+      "story": "Matthieu wrote a Vim manual over four years, presenting it as a progressive, exercise-based guide with 170 exercises, practical customization, and an emphasis on keyboard-driven editing.",
+      "submittedAt": "2026-11-26T14:44:22Z",
+      "title": "Show HN: I wrote an entire Vim manual over 4 years"
+    },
+    "50656036": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 33,
+      "discussion": "Discussion covered the project’s WebAssembly and VM isolation model, browser fingerprinting, security boundaries, performance, and practical issues people encountered while trying the demo.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50656036",
+      "id": "50656036",
+      "kind": "show",
+      "score": 148,
+      "sourceUrl": "https://michidk.github.io/sidebyside/",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://michidk.github.io/sidebyside/"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50656036"
+        }
+      ],
+      "story": "Side by Side runs Firefox, Chromium, and Epiphany in three Linux virtual machines inside one browser tab, allowing a URL to be viewed in each browser together.",
+      "submittedAt": "2026-11-26T15:00:06Z",
+      "title": "Show HN: Three Linux VMs in a browser tab, each running a different browser"
+    },
+    "50656763": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 39,
+      "discussion": "Commenters recommended programming, design, graphics, and business-learning resources, and discussed how AI changes the format and value of hands-on technical education.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50656763",
+      "id": "50656763",
+      "kind": "ask",
+      "score": 75,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50656763"
+        }
+      ],
+      "story": "An Ask HN post asked for courses or products made by independent creators that were worth buying.",
+      "submittedAt": "2026-11-26T16:16:41Z",
+      "title": "Ask HN: Any courses/products by indie makers worth getting today?"
+    },
+    "50657530": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 540,
+      "discussion": "Commenters compared it with established ad blockers and used the project to debate advertising, platform incentives, consent tools, and subscription models. Some also discussed the limits of browser extensions and mobile ad blocking.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50657530",
+      "id": "50657530",
+      "kind": "story",
+      "score": 462,
+      "sourceUrl": "https://github.com/antonpictures/youtube-punisher",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/antonpictures/youtube-punisher"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50657530"
+        }
+      ],
+      "story": "YouTube Ad Punisher is an open-source browser extension that reloads a YouTube page when it detects an advertisement, using page reloading rather than conventional filtering as its ad-avoidance tactic.",
+      "submittedAt": "2026-11-26T17:36:47Z",
+      "title": "YouTube Ad Punisher – Auto-reloads YouTube pages when an ad plays"
+    },
+    "50657957": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Original HN text post was retrieved and read.",
+          "status": "text-post"
+        }
+      },
+      "comments": 108,
+      "discussion": "Respondents emphasized relationships, creative work, service, curiosity, parenting, hobbies, and attending to everyday life rather than treating technology or career status as the source of meaning.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50657957",
+      "id": "50657957",
+      "kind": "ask",
+      "score": 64,
+      "sources": [
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50657957"
+        }
+      ],
+      "story": "An Ask HN poster asked how people find meaning in life at age 41.",
+      "submittedAt": "2026-11-26T18:14:53Z",
+      "title": "Ask HN: How do you find meaning of life at 41?"
+    },
+    "50658191": {
+      "availability": {
+        "discussion": {
+          "note": "HN post, visible top-level comments, and substantive replies were retrieved and read.",
+          "status": "reviewed"
+        },
+        "story": {
+          "note": "Linked external source was retrieved and read.",
+          "status": "reviewed"
+        }
+      },
+      "comments": 52,
+      "discussion": "Commenters praised the privacy goal while discussing U.S. state protections, California’s DROP service, international coverage, and the risk of giving more personal data to brokers during an opt-out request.",
+      "discussionUrl": "https://news.ycombinator.com/item?id=50658191",
+      "id": "50658191",
+      "kind": "show",
+      "score": 240,
+      "sourceUrl": "https://github.com/gary23w/f-ck_data_brokers",
+      "sources": [
+        {
+          "kind": "story",
+          "url": "https://github.com/gary23w/f-ck_data_brokers"
+        },
+        {
+          "kind": "discussion",
+          "url": "https://news.ycombinator.com/item?id=50658191"
+        }
+      ],
+      "story": "fck_data_brokers.py is a free open-source Python script intended to send opt-out and deletion requests to data brokers on a user’s behalf.",
+      "submittedAt": "2026-11-26T18:37:21Z",
+      "title": "Show HN: Fuck_data_brokers.py"
+    }
+  },
+  "revision": 1,
+  "scheduledAt": "2026-11-27T08:00:00Z",
+  "schemaVersion": 1,
+  "sections": [
+    {
+      "id": "votes",
+      "itemIds": [
+        "50574968",
+        "50611576",
+        "50614249",
+        "50579568",
+        "50646108",
+        "50615308",
+        "50611588",
+        "50644817",
+        "50581260",
+        "50596133"
+      ],
+      "qualifyingCount": 5678
+    },
+    {
+      "id": "comments",
+      "itemIds": [
+        "50589618",
+        "50597612",
+        "50574383",
+        "50627836",
+        "50622638",
+        "50576855",
+        "50627783",
+        "50637220",
+        "50595537",
+        "50657530"
+      ],
+      "qualifyingCount": 5678
+    },
+    {
+      "id": "ask",
+      "itemIds": [
+        "50583761",
+        "50630809",
+        "50577613",
+        "50655664",
+        "50649864",
+        "50600771",
+        "50657957",
+        "50643767",
+        "50622809",
+        "50656763"
+      ],
+      "qualifyingCount": 230
+    },
+    {
+      "id": "show",
+      "itemIds": [
+        "50599762",
+        "50638503",
+        "50658191",
+        "50655868",
+        "50590279",
+        "50656036",
+        "50623232",
+        "50611593",
+        "50574412",
+        "50581403",
+        "50651099",
+        "50630294",
+        "50596664",
+        "50642300",
+        "50624684",
+        "50589184",
+        "50602561"
+      ],
+      "qualifyingCount": 17
+    }
+  ],
+  "window": {
+    "end": "2026-11-27T08:00:00Z",
+    "start": "2026-11-20T08:00:00Z"
+  }
+}
